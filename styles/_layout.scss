@@ -1,0 +1,11 @@
+.container {
+    display: grid; 
+    grid-template-columns: 5fr 1fr 6fr; 
+    grid-template-rows: 1fr; 
+    gap: 0px 32px; 
+    grid-template-areas: 
+      "col_photo col-spacer col_content"; 
+  }
+  .col_photo { grid-area: col_photo; }
+  .col-spacer { grid-area: col-spacer; }
+  .col_content { grid-area: col_content; }
