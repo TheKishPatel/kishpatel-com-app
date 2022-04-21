@@ -15,8 +15,8 @@ const Home: NextPage = () => {
       <main className={styles.main}>
 
       <svg width="33" height="32" viewBox="0 0 33 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path fill-rule="evenodd" clip-rule="evenodd" d="M33 0L5 0L16 16L33 0Z" fill="#0019BF" fill-opacity="0.7"/>
-        <path fill-rule="evenodd" clip-rule="evenodd" d="M5 0L0 32H32L5 0Z" fill="#0019BF"/>
+        <path fillRule="evenodd" clipRule="evenodd" d="M33 0L5 0L16 16L33 0Z" fill="#0019BF" fillOpacity="0.7"/>
+        <path fillRule="evenodd" clipRule="evenodd" d="M5 0L0 32H32L5 0Z" fill="#0019BF"/>
       </svg>
 
 
@@ -41,7 +41,7 @@ const Home: NextPage = () => {
 
           <div className={styles.col_content}>
             <p>
-              Hi there! I'm Kish — a Designer, Design Leader and wannabe Software Engineer born, raised and based in London, UK. 
+              Hi there! I&apos;m Kish — a Designer, Design Leader and wannabe Software Engineer born, raised and based in London, UK. 
             </p>
 
             <p>
