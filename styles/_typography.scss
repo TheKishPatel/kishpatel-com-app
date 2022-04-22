@@ -2,15 +2,27 @@ h1, h2, h3, h4, h5, h6 {
     color: $text-light;
 }
 
-h1 {
-    font-family: Mirtha Display;
-    font-style: italic;
+h1, h2, h3 {
+    font-family: MirthaDisplayItalic, 'Times New Roman', Times, serif;
     font-weight: 400;
+}
+
+h4, h5, h6 {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-weight: 700;
 }
 
 p, small {
     color: $text-mid;
-    font-family: Inter;
-    font-weight: 400;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-weight: 300;
     line-height: 1.75;
+
+    a {
+        font-weight: 500;
+    }
+}
+
+p {
+    margin-top: 0;
 }

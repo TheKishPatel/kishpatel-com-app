@@ -14,10 +14,10 @@ const Home: NextPage = () => {
 
       <main className={styles.main}>
 
-      <svg width="33" height="32" viewBox="0 0 33 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path fillRule="evenodd" clipRule="evenodd" d="M33 0L5 0L16 16L33 0Z" fill="#0019BF" fillOpacity="0.7"/>
-        <path fillRule="evenodd" clipRule="evenodd" d="M5 0L0 32H32L5 0Z" fill="#0019BF"/>
-      </svg>
+        <svg width="33" height="32" viewBox="0 0 33 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fillRule="evenodd" clipRule="evenodd" d="M33 0L5 0L16 16L33 0Z" fill="#0019BF" fillOpacity="0.7"/>
+          <path fillRule="evenodd" clipRule="evenodd" d="M5 0L0 32H32L5 0Z" fill="#0019BF"/>
+        </svg>
 
 
         <h1 className={styles.title_lead}>
@@ -45,7 +45,7 @@ const Home: NextPage = () => {
             </p>
 
             <p>
-              I’m currently building a new investment brokerage in Europe called Lightyear with a ridiculously talented group of people — one without all the unnecessary fees and barriers and that actually helps its customers become better investors. Check out my Lightyear profile here.
+              I’m currently building a new investment brokerage in Europe called <a href="http://golightyear.com/" target="_blank" rel="noopener noreferrer">Lightyear</a> with a ridiculously talented group of people — one without all the unnecessary fees and barriers and that actually helps its customers become better investors. Check out my <a href="http://golightyear.com/go/kish/" target="_blank" rel="noopener noreferrer">Lightyear Profile</a>.
             </p>
           </div>
         </div>
@@ -54,11 +54,11 @@ const Home: NextPage = () => {
 
       <footer className={styles.footer}>
         <small>
-          You can find me in other places on the internet, such as Twitter, Figma, Github or LinkedIn. Alternatively, reach out to me directly at contact@kishpatel.com.
+          You can find me in other places on the internet, such as <a href="http://twitter.com/TheKishPatel" target="_blank" rel="noopener noreferrer">Twitter</a>, Figma, Github or LinkedIn. Alternatively, reach out to me directly at contact@kishpatel.com.
         </small>
 
         <small>
-          This site was built with Next.js/React and deployed to Vercel. Overkill? Probably. 
+          This site was built with Next.js/React and deployed to Vercel. Overkill? Probably. Take a look at the code here.
         </small>
       </footer>
     </div>
