@@ -54,7 +54,11 @@ const Home: NextPage = () => {
 
       <footer className={styles.footer}>
         <small>
-        You can find me in other places on the internet, such as Twitter, Figma, Github or LinkedIn. Alternatively, reach out to me directly at contact@kishpatel.com.
+          You can find me in other places on the internet, such as Twitter, Figma, Github or LinkedIn. Alternatively, reach out to me directly at contact@kishpatel.com.
+        </small>
+
+        <small>
+          This site was built with Next.js/React and deployed to Vercel. Overkill? Probably. 
         </small>
       </footer>
     </div>
