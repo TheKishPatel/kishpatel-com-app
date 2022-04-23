@@ -80,11 +80,9 @@ const Home: NextPage = () => {
 
       <footer className={`${styles.footer} ${styles.container}`}>
         <small>
-          You can find me in other places on the internet, such as <a href="http://twitter.com/TheKishPatel" target="_blank" rel="noopener noreferrer">Twitter</a>, Figma, Github or LinkedIn. Alternatively, reach out to me directly at contact@kishpatel.com.
-        </small>
-
-        <small>
-          This site was built with Next.js/React and deployed to Vercel. Overkill? Probably. Take a look at the code here.
+          You can find me in other places on the internet, such as <a href="http://twitter.com/TheKishPatel" target="_blank" rel="noopener noreferrer">Twitter</a>, <a href="http://figma.com/@kish/" target="_blank" rel="noopener noreferrer">Figma</a>, <a href="http://github.com/TheKishPatel" target="_blank" rel="noopener noreferrer">Github</a> or <a href="https://www.linkedin.com/in/kishpatel/" target="_blank" rel="noopener noreferrer">LinkedIn</a>. 
+          Alternatively, reach out to me directly at contact@kishpatel.com. 
+          This site was built with Next.js/React and deployed to Vercel. Overkill? Probably. Take a look at the code <a href="https://github.com/TheKishPatel/kishpatel-com-app" target="_blank" rel="noopener noreferrer">here</a>.
         </small>
       </footer>
     </div>
