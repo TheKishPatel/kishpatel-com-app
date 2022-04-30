@@ -20,9 +20,9 @@ const Home: NextPage = () => {
 
       <main className={styles.main}>
 
-        <svg width="33" height="32" viewBox="0 0 33 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path fillRule="evenodd" clipRule="evenodd" d="M33 0L5 0L16 16L33 0Z" fill="#0019BF" fillOpacity="0.7"/>
-          <path fillRule="evenodd" clipRule="evenodd" d="M5 0L0 32H32L5 0Z" fill="#0019BF"/>
+        <svg id="logo" width="33" height="32" viewBox="0 0 33 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path id="triangle-1" fillRule="evenodd" clipRule="evenodd" d="M33 0L5 0L16 16L33 0Z" fill="#0019BF" fillOpacity="0.7"/>
+          <path id="triangle-2" fillRule="evenodd" clipRule="evenodd" d="M5 0L0 32H32L5 0Z" fill="#0019BF"/>
         </svg>
 
 
@@ -67,7 +67,7 @@ const Home: NextPage = () => {
             </p>
 
             <p>
-              Recently, I&apos;ve started to automate much of the monkey work involved in the process and sharing it with the community, starting with Amountify — a Figma plugin for entering random currency amounts into your designs. 
+              Recently, I&apos;ve started to automate much of the monkey work involved in the process and sharing it with the community, starting with <a href="https://www.figma.com/community/plugin/1091267896551604658" target="_blank" rel="noopener noreferrer">Amountify</a>  — a Figma plugin for entering random currency amounts into your designs. 
             </p>
 
             <p>
