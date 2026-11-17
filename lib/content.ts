@@ -22,6 +22,20 @@ function requiredString(data: Record<string, unknown>, key: string, file: string
   return value.trim()
 }
 
+/** GIFs, and WebPs whose header sets the animation flag (VP8X chunk, bit 1 of byte 20). */
+function isAnimated(imagePath: string): boolean {
+  if (imagePath.endsWith('.gif')) return true
+  if (!imagePath.endsWith('.webp')) return false
+  const header = Buffer.alloc(21)
+  const fd = fs.openSync(imagePath, 'r')
+  try {
+    fs.readSync(fd, header, 0, header.length, 0)
+  } finally {
+    fs.closeSync(fd)
+  }
+  return header.toString('ascii', 12, 16) === 'VP8X' && (header[20] & 0x02) !== 0
+}
+
 /** Empty or missing → "". */
 function optionalString(data: Record<string, unknown>, key: string, file: string): string {
   const value = data[key]
@@ -123,6 +137,7 @@ export async function getProjects(): Promise<Project[]> {
       name: requiredString(data, 'name', file),
       description: parseLinks(optionalString(data, 'description', file), file),
       src,
+      animated: isAnimated(imagePath),
       width,
       height,
     }

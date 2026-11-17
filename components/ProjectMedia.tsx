@@ -19,6 +19,7 @@ export default function ProjectMedia({ project, sizes, priority }: Props) {
       sizes={sizes}
       // Above the default 75: flat colour and fine icon lines show compression blocks.
       quality={90}
+      unoptimized={project.animated}
       priority={priority}
       draggable={false}
     />

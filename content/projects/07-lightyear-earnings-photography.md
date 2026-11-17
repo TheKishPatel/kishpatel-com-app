@@ -1,5 +1,5 @@
 ---
 name: Lightyear Earnings Photography
 description: "[Lightyear.com](https://lightyear.com)"
-image: /gallery/lightyear-earnings-photography.webp
+image: /gallery/lightyear-earnings-reel.webp
 ---

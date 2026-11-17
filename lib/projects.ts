@@ -10,6 +10,8 @@ export type Project = {
   description: TextPart[]
   /** Path under /public, e.g. /gallery/tide.png */
   src: string
+  /** An animated WebP or a GIF: served as-is, since next/image can't resize animations. */
+  animated: boolean
   /** Display size — only the ratio matters. Defaults to the image's own size. */
   width: number
   height: number

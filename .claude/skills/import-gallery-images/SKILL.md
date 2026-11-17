@@ -30,6 +30,20 @@ rm *.png
 `cwebp` is at `/opt/homebrew/bin/cwebp` (`brew install webp` if it's missing). Look at
 one result (Read the .webp) to check it.
 
+### Animations (a sequence of images as one project)
+
+Make an **animated WebP**, not a GIF: GIF's 256 colours band dark photos and the file is
+~4× larger. Export each frame from Figma at its source's real resolution (check a
+`rawImages` size first — don't upscale past it), drop exact duplicates (`md5 -q`), then:
+
+```bash
+img2webp -loop 0 -lossy -q 90 -m 6 -d 150 [0-9][0-9].png -o name.webp   # 150ms a frame
+```
+
+(zsh doesn't split `$VAR` lists — pass the glob directly.) `lib/content.ts` detects
+animated WebPs and GIFs and serves them unoptimized. Give the file a new name when
+replacing a still, so caches don't serve the old image.
+
 ## 3. Add a content file per project
 
 `content/projects/NN-<id>.md` (format in `content/README.md`):
