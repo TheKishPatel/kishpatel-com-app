@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react'
 import { TextMorph } from 'torph/react'
+import { DURATION, EASE } from '../lib/motion'
 import type { Project } from '../lib/projects'
 import { FINE_HOVER_QUERY, PHONE_QUERY, useMediaQuery } from '../lib/hooks'
 import ProjectMedia from './ProjectMedia'
@@ -18,7 +19,7 @@ type Props = {
   onOpen: (index: number) => void
 }
 
-const EASE = 0.12 // fraction of the remaining distance covered per frame
+const GLIDE = 0.12 // fraction of the remaining distance covered per frame
 const DRAG_THRESHOLD = 5 // px before a press becomes a drag (and stops being a click)
 const INERTIA = 280 // ms of release velocity carried into the glide
 
@@ -63,7 +64,7 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
       m.raf = 0
       return
     }
-    m.current += remaining * EASE
+    m.current += remaining * GLIDE
     el.scrollLeft = m.current
     m.raf = requestAnimationFrame(tick)
   }, [])
@@ -262,7 +263,7 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
 
       <div ref={labelRef} className={styles.cursorLabel} aria-hidden>
         <span className={styles.cursorLabelText} data-visible={labelVisible}>
-          <TextMorph>{labelText}</TextMorph>
+          <TextMorph ease={EASE} duration={DURATION.slow}>{labelText}</TextMorph>
         </span>
       </div>
     </>

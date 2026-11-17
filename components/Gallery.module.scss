@@ -145,7 +145,7 @@
   color: $paper;
   white-space: nowrap;
   opacity: 0;
-  transition: opacity 150ms, transform 150ms $ease-out;
+  transition: opacity $duration-fast $ease, transform $duration-fast $ease;
 
   &[data-visible="true"] {
     opacity: 1;

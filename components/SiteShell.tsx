@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { TextMorph } from 'torph/react'
+import { DURATION, EASE } from '../lib/motion'
 import type { Project } from '../lib/projects'
 import { prefersReducedMotion } from '../lib/hooks'
 import Gallery, { projectElement } from './Gallery'
@@ -11,7 +12,7 @@ import type { GalleryView } from './Gallery'
 import Lightbox from './Lightbox'
 import type { LightboxHandle } from './Lightbox'
 import ViewToggle from './ViewToggle'
-import { closeAbout, markAboutOpenedInApp, socials } from './About'
+import About, { closeAbout, markAboutOpenedInApp, socials } from './About'
 import styles from './SiteShell.module.scss'
 
 type ViewTransitionDocument = Document & { startViewTransition?: (update: () => void) => unknown }
@@ -23,6 +24,10 @@ type ViewTransitionDocument = Document & { startViewTransition?: (update: () => 
 export default function SiteShell({ projects, children }: { projects: Project[]; children: ReactNode }) {
   const router = useRouter()
   const aboutOpen = router.pathname === '/about'
+  // Stays mounted after the URL leaves /about, until its fade-out finishes.
+  const [aboutMounted, setAboutMounted] = useState(aboutOpen)
+  if (aboutOpen && !aboutMounted) setAboutMounted(true)
+  const onAboutExited = useCallback(() => setAboutMounted(false), [])
 
   const [view, setView] = useState<GalleryView>('gallery')
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
@@ -52,6 +57,10 @@ export default function SiteShell({ projects, children }: { projects: Project[];
     if (overlayOpen) navRef.current?.focus({ preventScroll: true })
   }, [overlayOpen])
 
+  // Mouse only: a tap shouldn't leave "About me" stuck on touch screens.
+  const [navHovered, setNavHovered] = useState(false)
+  const navLabel = overlayOpen ? 'Close' : navHovered ? 'About me' : 'About'
+
   const onNavClick = (e: MouseEvent) => {
     if (!overlayOpen) return markAboutOpenedInApp()
     e.preventDefault()
@@ -73,8 +82,10 @@ export default function SiteShell({ projects, children }: { projects: Project[];
             scroll={false}
             className={styles.aboutLink}
             onClick={onNavClick}
+            onPointerEnter={(e) => e.pointerType === 'mouse' && setNavHovered(true)}
+            onPointerLeave={() => setNavHovered(false)}
           >
-            <TextMorph>{overlayOpen ? 'Close' : 'About'}</TextMorph>
+            <TextMorph ease={EASE} duration={DURATION.slow}>{navLabel}</TextMorph>
           </Link>
         </nav>
       </header>
@@ -114,6 +125,8 @@ export default function SiteShell({ projects, children }: { projects: Project[];
           onClosed={onLightboxClosed}
         />
       )}
+
+      {aboutMounted && <About open={aboutOpen} onExited={onAboutExited} />}
 
       {children}
     </div>

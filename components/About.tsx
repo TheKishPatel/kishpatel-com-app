@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import type { NextRouter } from 'next/router'
-import { useScrollLock } from '../lib/hooks'
+import { prefersReducedMotion, useScrollLock } from '../lib/hooks'
+import { DURATION, EASE } from '../lib/motion'
 import styles from './About.module.scss'
 
 type LinkItem = { label: string; href?: string }
@@ -14,8 +15,8 @@ const roles: { years: string; company: LinkItem }[] = [
 
 const founders: LinkItem[] = [
   { label: 'Sunsave', href: 'https://www.sunsave.energy' },
-  { label: 'Marloo' }, // TODO: add URL
-  { label: 'Sophic' }, // TODO: add URL
+  { label: 'Marloo', href: 'https://www.marloo.com/' },
+  { label: 'Sophic', href: 'https://www.usesophic.com/' },
 ]
 
 export const socials: (LinkItem & { short: string })[] = [
@@ -50,20 +51,51 @@ function Item({ item }: { item: LinkItem }) {
   )
 }
 
-export default function About() {
-  const router = useRouter()
+type Props = {
+  /** False once the URL has left /about — the overlay then fades out. */
+  open: boolean
+  /** Called when the fade-out has finished, so SiteShell can unmount it. */
+  onExited: () => void
+}
 
-  useScrollLock(true)
+/** Rendered by SiteShell (not the /about page) so it can fade out after the route changes. */
+export default function About({ open, onExited }: Props) {
+  const router = useRouter()
+  const ref = useRef<HTMLDivElement>(null)
+
+  useScrollLock(open)
 
   useEffect(() => {
+    if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeAbout(router)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [router])
+  }, [open, router])
+
+  useEffect(() => {
+    if (open) return
+    const el = ref.current
+    if (!el) return onExited()
+    const anim = el.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: prefersReducedMotion() ? 0 : DURATION.base,
+      easing: EASE,
+      fill: 'forwards',
+    })
+    anim.onfinish = onExited
+    // Reopened mid-fade: drop the fade and stay.
+    return () => anim.cancel()
+  }, [open, onExited])
 
   // The Close control is the site nav link (SiteShell), so this isn't aria-modal.
   return (
-    <div className={styles.about} role="dialog" aria-labelledby="about-title">
+    <div
+      ref={ref}
+      className={styles.about}
+      role="dialog"
+      aria-labelledby="about-title"
+      aria-hidden={!open || undefined}
+      data-closing={!open || undefined}
+    >
       <div className={styles.content}>
         <div className={styles.row}>
           <h1 id="about-title" className={styles.label}>

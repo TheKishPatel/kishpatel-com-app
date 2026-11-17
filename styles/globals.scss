@@ -64,3 +64,22 @@ button {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+// Gallery ↔ grid switch (View Transitions API).
+// Only the gallery items take part: the page itself isn't captured, so the header
+// and footer stay live, and the moving items are clipped to the gallery's band
+// (inset $chrome top and bottom) — the same clipping the scroller gives them.
+:root {
+  view-transition-name: none;
+}
+
+::view-transition {
+  clip-path: inset($chrome 0);
+}
+
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: $duration-base;
+  animation-timing-function: $ease;
+}

@@ -11,7 +11,7 @@
   width: 30px;
   height: 16px;
   opacity: 0.1;
-  transition: opacity 150ms;
+  transition: opacity $duration-fast $ease;
 
   // Larger hit area than the 30 × 16 icon
   &::after {

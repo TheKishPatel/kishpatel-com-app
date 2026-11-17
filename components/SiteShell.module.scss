@@ -27,7 +27,7 @@
 }
 
 .navLink {
-  transition: opacity 150ms;
+  transition: opacity $duration-fast $ease;
 
   &:hover {
     opacity: $muted-opacity;
@@ -39,7 +39,7 @@
 .aboutLink {
   position: relative;
   display: inline-block;
-  transition: opacity 150ms;
+  transition: opacity $duration-fast $ease;
 
   &::before {
     content: "";
@@ -49,7 +49,7 @@
     border-radius: 2px;
     background: $chip-bg;
     opacity: 0;
-    transition: opacity 200ms $ease-out, background-color 150ms;
+    transition: opacity $duration-fast $ease, background-color $duration-fast $ease;
   }
 
   &:hover {

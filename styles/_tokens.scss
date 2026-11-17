@@ -15,7 +15,11 @@ $underline: rgba(0, 0, 0, 0.1);
 
 $phone-gutter: 20px;
 
-$ease-out: cubic-bezier(0.2, 0, 0, 1);
+// Motion — also lib/motion.ts (JS animations, torph).
+$ease: cubic-bezier(0.2, 0.8, 0, 1);
+$duration-fast: 150ms; // hovers, small fades, things leaving
+$duration-base: 250ms; // overlays fading, slides, settling back
+$duration-slow: 500ms; // big moves: the lightbox zoom, text morphs
 
 // Stacking order
 $z-gallery: 0;

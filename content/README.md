@@ -18,14 +18,12 @@ description: One short sentence.   # shown under the image in the lightbox
 image: /gallery/tide.png           # a file in /public
 width: 850                         # optional: display size (only the ratio
 height: 651                        # matters); defaults to the image's own size
-shader: grain-drift                # optional: animated shader over the image
 ---
 ```
 
 - **Add a project:** put the image in `public/gallery/`, add a numbered file here.
 - **Reorder:** renumber the files.
 - **Hide one (draft):** drop the number prefix, e.g. `tide.md` — unnumbered files are skipped.
-- **Shaders:** names come from `lib/shaders.ts`.
 
 The site reads these at build time, so changes go live on the next deploy. In
 `npm run dev`, refresh the page to see an edit. A missing field or image fails the

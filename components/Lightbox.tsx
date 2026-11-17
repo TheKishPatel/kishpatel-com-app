@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { flushSync } from 'react-dom'
 import type { Project } from '../lib/projects'
 import { prefersReducedMotion, useScrollLock } from '../lib/hooks'
+import { DURATION, EASE } from '../lib/motion'
 import ProjectMedia from './ProjectMedia'
 import styles from './Lightbox.module.scss'
 
@@ -23,11 +24,10 @@ export type LightboxHandle = { close: () => void }
 
 type Rect = { left: number; top: number; width: number; height: number }
 
-const OPEN_MS = 420
-const CLOSE_MS = 340
+const OPEN_MS = DURATION.slow
+const CLOSE_MS = DURATION.base
 const SWIPE_DISTANCE = 60
 const DISMISS_DISTANCE = 100
-const EASING = 'cubic-bezier(0.2, 0, 0, 1)'
 
 /** Largest rect with the project's ratio that fits the gallery's own constraints. */
 function fitRect(project: Project): Rect {
@@ -92,12 +92,13 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
       opened.current = true
       const origin = getOrigin(index)?.getBoundingClientRect()
       if (origin && !reduce) {
-        frame.animate([{ transform: flip(origin, rect) }, { transform: 'none' }], { duration: OPEN_MS, easing: EASING })
+        frame.animate([{ transform: flip(origin, rect) }, { transform: 'none' }], { duration: OPEN_MS, easing: EASE })
       }
-      backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce ? 0 : OPEN_MS, easing: EASING })
+      backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce ? 0 : OPEN_MS, easing: EASE })
       captionRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], {
-        duration: reduce ? 0 : 250,
-        delay: reduce ? 0 : OPEN_MS * 0.6,
+        duration: reduce ? 0 : DURATION.base,
+        easing: EASE,
+        delay: reduce ? 0 : DURATION.base, // lands with the end of the zoom
         fill: 'backwards',
       })
       return
@@ -115,9 +116,9 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
           { transform: `translateX(${offset}px)`, opacity: 0 },
           { transform: 'none', opacity: 1 },
         ],
-        { duration: 260, easing: EASING },
+        { duration: DURATION.base, easing: EASE },
       )
-      captionRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 })
+      captionRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DURATION.base, easing: EASE })
     }
     // Only re-run when the project changes, not on resize.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,10 +140,10 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
 
     backdropRef.current?.animate([{ opacity: getComputedStyle(backdropRef.current).opacity }, { opacity: 0 }], {
       duration,
-      easing: EASING,
+      easing: EASE,
       fill: 'forwards',
     })
-    captionRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: duration / 2, fill: 'forwards' })
+    captionRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: reduce ? 0 : DURATION.fast, easing: EASE, fill: 'forwards' })
 
     const finish = () => {
       // The item is visibility: hidden until onClosed renders, and hidden elements
@@ -152,13 +153,13 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     }
 
     if (!frame || !target || !origin || reduce) {
-      frame?.animate([{ opacity: 1 }, { opacity: 0 }], { duration, fill: 'forwards' })
+      frame?.animate([{ opacity: 1 }, { opacity: 0 }], { duration, easing: EASE, fill: 'forwards' })
       window.setTimeout(finish, duration)
       return
     }
     const anim = frame.animate(
       [{ transform: current === 'none' ? 'none' : current }, { transform: flip(origin, target) }],
-      { duration, easing: EASING, fill: 'forwards' },
+      { duration, easing: EASE, fill: 'forwards' },
     )
     anim.onfinish = finish
   }, [rect, index, getOrigin, onClose, onClosed])
@@ -181,7 +182,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
           { transform: current === 'none' ? 'none' : current, opacity: 1 },
           { transform: `translateX(${-direction * 48}px)`, opacity: 0 },
         ],
-        { duration: 160, easing: 'ease-in', fill: 'forwards' },
+        { duration: DURATION.fast, easing: EASE, fill: 'forwards' },
       )
       // Held (fill: forwards) until the next project renders; the enter effect cancels it.
       leaveAnim.current = anim
@@ -249,12 +250,12 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     if (frame) {
       const from = frame.style.transform
       frame.style.transform = ''
-      frame.animate([{ transform: from }, { transform: 'none' }], { duration: 220, easing: EASING })
+      frame.animate([{ transform: from }, { transform: 'none' }], { duration: DURATION.base, easing: EASE })
     }
     if (backdropRef.current) {
       const from = backdropRef.current.style.opacity || '1'
       backdropRef.current.style.opacity = ''
-      backdropRef.current.animate([{ opacity: from }, { opacity: 1 }], { duration: 220 })
+      backdropRef.current.animate([{ opacity: from }, { opacity: 1 }], { duration: DURATION.base, easing: EASE })
     }
   }
 

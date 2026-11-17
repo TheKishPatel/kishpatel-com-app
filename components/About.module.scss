@@ -9,7 +9,12 @@
   background: $overlay-bg;
   -webkit-backdrop-filter: blur($overlay-blur);
   backdrop-filter: blur($overlay-blur);
-  animation: fade-in 240ms $ease-out;
+  animation: fade-in $duration-base $ease;
+
+  // Fading out (JS): let clicks through to the gallery.
+  &[data-closing] {
+    pointer-events: none;
+  }
 }
 
 @keyframes fade-in {
@@ -59,7 +64,7 @@
   text-decoration-color: $underline;
   text-decoration-thickness: 8%;
   text-underline-offset: auto;
-  transition: text-decoration-color 150ms;
+  transition: text-decoration-color $duration-fast $ease;
 }
 
 a.link:hover {

@@ -4,7 +4,6 @@ import path from 'node:path'
 import matter from 'gray-matter'
 import { imageSize } from 'image-size'
 import type { Project } from './projects'
-import { isShaderName, shaders } from './shaders'
 
 const PROJECTS_DIR = path.join(process.cwd(), 'content', 'projects')
 const PUBLIC_DIR = path.join(process.cwd(), 'public')
@@ -60,12 +59,7 @@ export function getProjects(): Project[] {
       height = size.height
     }
 
-    const shader = data.shader
-    if (shader !== undefined && !isShaderName(shader)) {
-      fail(file, `unknown shader "${String(shader)}" — use one of: ${Object.keys(shaders).join(', ')}`)
-    }
-
-    const project: Project = {
+    return {
       id,
       name: requiredString(data, 'name', file),
       description: requiredString(data, 'description', file),
@@ -73,7 +67,5 @@ export function getProjects(): Project[] {
       width,
       height,
     }
-    if (shader) project.shader = shader
-    return project
   })
 }
