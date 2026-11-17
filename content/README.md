@@ -14,14 +14,20 @@ projects/
 ```md
 ---
 name: Project One                  # shown above the cursor and in the lightbox
-description: One short sentence.   # shown under the image in the lightbox
-image: /gallery/tide.png           # a file in /public
+description: One short sentence.   # optional: shown under the image in the lightbox
+image: /gallery/tide.webp          # a file in /public (WebP 90 from a 2x PNG)
 width: 850                         # optional: display size (only the ratio
 height: 651                        # matters); defaults to the image's own size
 ---
 ```
 
+- **Link from a description:** write `[text](https://…)`, and wrap the whole
+  description in double quotes:
+  `description: "Shot for Lightyear's [earnings series](https://lightyear.com)."`
+  Links open in a new tab. Only full `https://` addresses work; anything else fails the build.
 - **Add a project:** put the image in `public/gallery/`, add a numbered file here.
+  Images are WebP at quality 90, converted from a 2x PNG — see
+  `.claude/skills/import-gallery-images/SKILL.md` for the steps.
 - **Reorder:** renumber the files.
 - **Hide one (draft):** drop the number prefix, e.g. `tide.md` — unnumbered files are skipped.
 

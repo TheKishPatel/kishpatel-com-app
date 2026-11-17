@@ -14,8 +14,11 @@
   display: block;
   line-height: 0;
 
-  img {
-    display: block;
+  // A bigger hover and tap target (about 49 × 48) without moving the mark.
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -12px;
   }
 }
 
@@ -100,7 +103,7 @@
 // Phones: one column that scrolls with the page, no footer.
 @include for-phone-only {
   .shell {
-    padding: 72px 0 $phone-gutter;
+    padding: $phone-chrome 0 $phone-gutter;
   }
 
   .logo {

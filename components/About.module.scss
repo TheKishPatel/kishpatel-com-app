@@ -44,7 +44,7 @@
 
   @include for-phone-only {
     justify-content: flex-start;
-    padding: 72px $phone-gutter 48px;
+    padding: $phone-chrome $phone-gutter 48px;
   }
 }
 

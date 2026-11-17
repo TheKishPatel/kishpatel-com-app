@@ -32,3 +32,15 @@
 .description {
   opacity: $muted-opacity;
 }
+
+// Same treatment as the links on the About page.
+.link {
+  text-decoration: underline;
+  text-decoration-color: $underline;
+  text-decoration-thickness: 8%;
+  transition: text-decoration-color $duration-fast $ease;
+
+  &:hover {
+    text-decoration-color: currentColor;
+  }
+}

@@ -1,8 +1,8 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { flushSync } from 'react-dom'
 import type { Project } from '../lib/projects'
-import { prefersReducedMotion, useScrollLock } from '../lib/hooks'
+import { PHONE_QUERY, prefersReducedMotion, useScrollLock } from '../lib/hooks'
 import { DURATION, EASE } from '../lib/motion'
 import ProjectMedia from './ProjectMedia'
 import styles from './Lightbox.module.scss'
@@ -29,14 +29,21 @@ const CLOSE_MS = DURATION.base
 const SWIPE_DISTANCE = 60
 const DISMISS_DISTANCE = 100
 
+const PHONE_CAPTION_SPACE = 112 // below the image on phones, room for the caption
+
+/** A px length token from styles/_tokens.scss, exposed on :root in globals.scss. */
+function token(name: string): number {
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name))
+}
+
 /** Largest rect with the project's ratio that fits the gallery's own constraints. */
 function fitRect(project: Project): Rect {
   const vw = window.innerWidth
   const vh = window.innerHeight
-  const phone = vw < 600
-  const padX = phone ? 20 : 36
-  const top = phone ? 72 : 96
-  const bottom = phone ? 112 : 96
+  const phone = window.matchMedia(PHONE_QUERY).matches
+  const padX = token(phone ? '--phone-gutter' : '--gutter')
+  const top = token(phone ? '--phone-chrome' : '--chrome')
+  const bottom = phone ? PHONE_CAPTION_SPACE : token('--chrome')
   const ratio = project.width / project.height
   const maxW = vw - padX * 2
   const maxH = vh - top - bottom
@@ -61,6 +68,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
   ref,
 ) {
   const project = projects[index]
+  const hasDescription = project.description.length > 0
   const frameRef = useRef<HTMLDivElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
   const captionRef = useRef<HTMLDivElement>(null)
@@ -128,6 +136,9 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     if (closing.current) return
     closing.current = true
     onClose()
+    // Closing mid-swipe: drop the held slide-out (and its project change).
+    leaveAnim.current?.cancel()
+    leaveAnim.current = null
     const frame = frameRef.current
     const target = rect
     const originEl = getOrigin(index)
@@ -172,6 +183,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
       const next = (index + direction + projects.length) % projects.length
       const frame = frameRef.current
       const leave = () => {
+        if (closing.current) return
         enterFrom.current = direction
         onIndexChange(next)
       }
@@ -205,7 +217,10 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
   // --- Swipe: sideways for next / previous, up or down to dismiss, tap to close ---
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (closing.current || !e.isPrimary) return
+    // Primary button only: a right-click (context menu) shouldn't count as a tap-to-close.
+    if (closing.current || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return
+    // A link in the caption: let the click follow it rather than count as tap-to-close.
+    if ((e.target as Element).closest('a')) return
     e.currentTarget.setPointerCapture(e.pointerId)
     gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, axis: null, dx: 0, dy: 0 }
   }
@@ -271,7 +286,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
       className={styles.lightbox}
       role="dialog"
       aria-labelledby="lightbox-title"
-      aria-describedby="lightbox-description"
+      aria-describedby={hasDescription ? 'lightbox-description' : undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -295,9 +310,19 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
             style={{ left: rect.left, top: rect.top + rect.height + 12, width: rect.width }}
           >
             <h2 id="lightbox-title">{project.name}</h2>
-            <p id="lightbox-description" className={styles.description}>
-              {project.description}
-            </p>
+            {hasDescription && (
+              <p id="lightbox-description" className={styles.description}>
+                {project.description.map((part, i) =>
+                  typeof part === 'string' ? (
+                    <Fragment key={i}>{part}</Fragment>
+                  ) : (
+                    <a key={i} className={styles.link} href={part.href} target="_blank" rel="noopener noreferrer">
+                      {part.text}
+                    </a>
+                  ),
+                )}
+              </p>
+            )}
           </div>
         </>
       )}

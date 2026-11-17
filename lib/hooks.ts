@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 
 export const PHONE_QUERY = '(max-width: 599px)'
 export const FINE_HOVER_QUERY = '(hover: hover) and (pointer: fine)'
@@ -18,15 +18,25 @@ export function useMediaQuery(query: string): boolean {
   return matches
 }
 
+/** useLayoutEffect in the browser, useEffect on the server (where layout effects can't run and React warns). */
+export const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
+
+// Overlays can stack (e.g. the lightbox over About after a Back press) and close in
+// any order, so locks are counted and the page's own value is restored only at zero.
+let scrollLocks = 0
+let unlockedOverflow = ''
+
 /** Stops the page behind an overlay from scrolling (only matters on phones, where the page scrolls). */
 export function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return
     const root = document.documentElement
-    const previous = root.style.overflow
-    root.style.overflow = 'hidden'
+    if (scrollLocks++ === 0) {
+      unlockedOverflow = root.style.overflow
+      root.style.overflow = 'hidden'
+    }
     return () => {
-      root.style.overflow = previous
+      if (--scrollLocks === 0) root.style.overflow = unlockedOverflow
     }
   }, [active])
 }

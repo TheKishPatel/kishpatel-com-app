@@ -12,6 +12,7 @@ import type { GalleryView } from './Gallery'
 import Lightbox from './Lightbox'
 import type { LightboxHandle } from './Lightbox'
 import ViewToggle from './ViewToggle'
+import LogoMark from './LogoMark'
 import About, { closeAbout, markAboutOpenedInApp, socials } from './About'
 import styles from './SiteShell.module.scss'
 
@@ -57,9 +58,20 @@ export default function SiteShell({ projects, children }: { projects: Project[];
     if (overlayOpen) navRef.current?.focus({ preventScroll: true })
   }, [overlayOpen])
 
-  // Mouse only: a tap shouldn't leave "About me" stuck on touch screens.
-  const [navHovered, setNavHovered] = useState(false)
-  const navLabel = overlayOpen ? 'Close' : navHovered ? 'About me' : 'About'
+  // While an overlay is open, everything behind it except the Close link is inert,
+  // so Tab and screen readers stay with the overlay.
+  const logoRef = useRef<HTMLAnchorElement>(null)
+  // Mouse hover or keyboard focus only, so a tap doesn't leave it morphed on touch screens.
+  const [logoHovered, setLogoHovered] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
+  const footerRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    for (const el of [logoRef.current, mainRef.current, footerRef.current]) {
+      if (el) el.inert = overlayOpen
+    }
+  }, [overlayOpen])
+
+  const navLabel = overlayOpen ? 'Close' : 'About'
 
   const onNavClick = (e: MouseEvent) => {
     if (!overlayOpen) return markAboutOpenedInApp()
@@ -71,9 +83,18 @@ export default function SiteShell({ projects, children }: { projects: Project[];
   return (
     <div className={styles.shell}>
       <header>
-        <Link href="/" scroll={false} className={styles.logo} aria-label="Kish Patel — home">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="" width={24.75} height={24} />
+        <Link
+          ref={logoRef}
+          href="/"
+          scroll={false}
+          className={styles.logo}
+          aria-label="Kish Patel — home"
+          onPointerEnter={(e) => e.pointerType === 'mouse' && setLogoHovered(true)}
+          onPointerLeave={() => setLogoHovered(false)}
+          onFocus={(e) => e.currentTarget.matches(':focus-visible') && setLogoHovered(true)}
+          onBlur={() => setLogoHovered(false)}
+        >
+          <LogoMark active={logoHovered && !overlayOpen} />
         </Link>
         <nav className={styles.nav} data-open={overlayOpen || undefined}>
           <Link
@@ -82,15 +103,13 @@ export default function SiteShell({ projects, children }: { projects: Project[];
             scroll={false}
             className={styles.aboutLink}
             onClick={onNavClick}
-            onPointerEnter={(e) => e.pointerType === 'mouse' && setNavHovered(true)}
-            onPointerLeave={() => setNavHovered(false)}
           >
             <TextMorph ease={EASE} duration={DURATION.slow}>{navLabel}</TextMorph>
           </Link>
         </nav>
       </header>
 
-      <main>
+      <main ref={mainRef}>
         <h1 className="visually-hidden">Kish Patel — selected work</h1>
         <Gallery
           projects={projects}
@@ -101,7 +120,7 @@ export default function SiteShell({ projects, children }: { projects: Project[];
         />
       </main>
 
-      <footer className={styles.footer}>
+      <footer ref={footerRef} className={styles.footer}>
         <ul className={styles.socials}>
           {socials.map((s) => (
             <li key={s.label}>

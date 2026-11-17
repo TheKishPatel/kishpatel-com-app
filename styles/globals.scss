@@ -1,5 +1,13 @@
 @import "tokens";
 
+// Layout tokens for JS (the lightbox sizes itself to the gallery's insets).
+:root {
+  --gutter: #{$gutter};
+  --chrome: #{$chrome};
+  --phone-gutter: #{$phone-gutter};
+  --phone-chrome: #{$phone-chrome};
+}
+
 * {
   box-sizing: border-box;
 }

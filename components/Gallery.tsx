@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react'
 import { TextMorph } from 'torph/react'
 import { DURATION, EASE } from '../lib/motion'
 import type { Project } from '../lib/projects'
-import { FINE_HOVER_QUERY, PHONE_QUERY, useMediaQuery } from '../lib/hooks'
+import { FINE_HOVER_QUERY, PHONE_QUERY, useIsomorphicLayoutEffect, useMediaQuery } from '../lib/hooks'
 import ProjectMedia from './ProjectMedia'
 import styles from './Gallery.module.scss'
 
@@ -19,9 +19,32 @@ type Props = {
   onOpen: (index: number) => void
 }
 
-const GLIDE = 0.12 // fraction of the remaining distance covered per frame
+const GLIDE = 0.12 // mouse wheel: fraction of the remaining distance covered per 60Hz frame
 const DRAG_THRESHOLD = 5 // px before a press becomes a drag (and stops being a click)
 const INERTIA = 280 // ms of release velocity carried into the glide
+
+// The strip's height: the viewport minus the header and footer bands ($chrome × 2).
+const STRIP_INSET = 96 * 2
+
+/**
+ * How wide an item is drawn, so the browser fetches a sharp enough image: full width on
+ * phones, otherwise as tall as the strip and as wide as its ratio (often wider than the
+ * viewport's half). The grid draws them smaller, so this covers both views.
+ */
+const itemSizes = (project: Project) =>
+  `${PHONE_QUERY} 100vw, calc((100vh - ${STRIP_INSET}px) * ${+(project.width / project.height).toFixed(4)})`
+
+/**
+ * Trackpads and smooth mice (Magic Mouse) send pixel deltas with their own momentum;
+ * notched wheels send big fixed steps. Chrome and Safari's legacy wheelDeltaY is exactly
+ * -3 × deltaY for the first kind; elsewhere, fall back to the shape of the delta.
+ */
+function isTrackpad(e: WheelEvent): boolean {
+  const legacy = (e as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY
+  if (typeof legacy === 'number' && legacy !== 0) return legacy === -3 * e.deltaY
+  if (e.deltaMode !== 0) return false // lines or pages: a notched wheel
+  return e.deltaX !== 0 || !Number.isInteger(e.deltaY) || Math.abs(e.deltaY) < 50
+}
 
 const clampScroll = (el: HTMLElement, value: number) =>
   Math.max(0, Math.min(el.scrollWidth - el.clientWidth, value))
@@ -32,6 +55,7 @@ export function projectElement(index: number): HTMLElement | null {
 
 export default function Gallery({ projects, view, interactive, hiddenIndex, onOpen }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLUListElement>(null)
   const labelRef = useRef<HTMLDivElement>(null)
 
   const isPhone = useMediaQuery(PHONE_QUERY)
@@ -43,7 +67,7 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
   const [dragging, setDragging] = useState(false)
 
   // Eased horizontal scroll. `current` is kept as a float so the easing stays smooth.
-  const motion = useRef({ current: 0, target: 0, raf: 0 })
+  const motion = useRef({ current: 0, target: 0, raf: 0, time: 0 })
   const drag = useRef({ down: false, active: false, startX: 0, startScroll: 0, lastX: 0, lastT: 0, velocity: 0 })
   const suppressClick = useRef(false)
   const pointer = useRef<{ x: number; y: number } | null>(null)
@@ -53,7 +77,7 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
     motion.current.raf = 0
   }
 
-  const tick = useCallback(() => {
+  const tick = useCallback((now: number) => {
     const el = scrollerRef.current
     const m = motion.current
     if (!el) return
@@ -64,7 +88,10 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
       m.raf = 0
       return
     }
-    m.current += remaining * GLIDE
+    // GLIDE per 60Hz frame, scaled to the real frame time so 120Hz screens feel the same.
+    const frames = m.time ? Math.min(4, (now - m.time) / (1000 / 60)) : 1
+    m.time = now
+    m.current += remaining * (1 - Math.pow(1 - GLIDE, frames))
     el.scrollLeft = m.current
     m.raf = requestAnimationFrame(tick)
   }, [])
@@ -76,7 +103,10 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
       if (!el) return
       if (!m.raf) m.current = el.scrollLeft
       m.target = clampScroll(el, target)
-      if (!m.raf) m.raf = requestAnimationFrame(tick)
+      if (!m.raf) {
+        m.time = 0
+        m.raf = requestAnimationFrame(tick)
+      }
     },
     [tick],
   )
@@ -87,8 +117,25 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
     const onWheel = (e: WheelEvent) => {
       const el = scrollerRef.current
       if (!el || e.ctrlKey) return // ctrl+wheel is pinch-zoom
+      const sideways = Math.abs(e.deltaX) > Math.abs(e.deltaY)
+
+      if (isTrackpad(e)) {
+        // Sideways swipes over the strip: let the browser scroll it natively.
+        if (sideways && el.contains(e.target as Node)) return
+        // Otherwise move it by exactly what macOS sends — its momentum is already smooth,
+        // and easing it again makes it judder.
+        const delta = sideways ? e.deltaX : e.deltaY
+        if (!delta) return
+        e.preventDefault()
+        stopGlide()
+        el.scrollLeft = clampScroll(el, el.scrollLeft + delta)
+        motion.current.current = motion.current.target = el.scrollLeft
+        return
+      }
+
+      // A notched mouse wheel jumps in steps, so glide between them.
       const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? el.clientWidth : 1
-      const delta = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * unit
+      const delta = (sideways ? e.deltaX : e.deltaY) * unit
       if (!delta) return
       e.preventDefault()
       const from = motion.current.raf ? motion.current.target : el.scrollLeft
@@ -99,7 +146,7 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
   }, [horizontal, interactive, glideTo])
 
   // Switching layouts starts from the top / left.
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     stopGlide()
     const el = scrollerRef.current
     if (!el) return
@@ -115,11 +162,24 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
   const updateHover = useCallback(() => {
     const p = pointer.current
     if (!p) return setHovered(null)
-    const item = document.elementFromPoint(p.x, p.y)?.closest<HTMLElement>('[data-project-index]')
-    const index = item && scrollerRef.current?.contains(item) ? Number(item.dataset.projectIndex) : null
-    setHovered(index)
-    if (index !== null) setLabelText(projects[index].name)
+    const hit = document.elementFromPoint(p.x, p.y)
+    const item = hit?.closest<HTMLElement>('[data-project-index]')
+    if (item && trackRef.current?.contains(item)) {
+      const index = Number(item.dataset.projectIndex)
+      setHovered(index)
+      setLabelText(projects[index].name)
+    } else if (hit && trackRef.current?.contains(hit)) {
+      // In a gap between items: keep the label up (and its text), so moving from one
+      // image to the next morphs the name instead of hiding and reshowing it.
+    } else {
+      setHovered(null)
+    }
   }, [projects])
+
+  // An overlay just closed: re-check what's under the (possibly unmoved) pointer.
+  useEffect(() => {
+    if (interactive && canHover) updateHover()
+  }, [interactive, canHover, updateHover])
 
   useEffect(() => {
     if (!canHover) return
@@ -162,6 +222,9 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const d = drag.current
     if (!d.down) return
+    // Released outside the scroller before the drag captured the pointer — the
+    // pointerup never reached us, so end it here rather than drag a buttonless mouse.
+    if (!(e.buttons & 1)) return endDrag(e)
     const el = scrollerRef.current!
     const dx = e.clientX - d.startX
     if (!d.active) {
@@ -230,7 +293,7 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
         onClickCapture={onClickCapture}
         onScroll={onScroll}
       >
-        <ul className={styles.track}>
+        <ul ref={trackRef} className={styles.track}>
           {projects.map((project, index) => (
             <li
               key={project.id}
@@ -250,11 +313,7 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
                 aria-label={`${project.name} — open`}
                 onClick={() => onOpen(index)}
               >
-                <ProjectMedia
-                  project={project}
-                  priority={index < 3}
-                  sizes="(max-width: 599px) 100vw, (max-width: 899px) 50vw, 60vw"
-                />
+                <ProjectMedia project={project} priority={index < 3} sizes={itemSizes(project)} />
               </button>
             </li>
           ))}
