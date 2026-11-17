@@ -1,0 +1,36 @@
+@import "../styles/tokens";
+
+.toggle {
+  display: flex;
+  gap: $gap;
+  align-items: center;
+}
+
+.option {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  opacity: 0.1;
+  transition: opacity 150ms;
+
+  // Larger hit area than the 30 × 16 icon
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -8px -4px;
+  }
+
+  &:hover {
+    opacity: 0.3;
+  }
+
+  &[aria-pressed="true"] {
+    opacity: 1;
+    cursor: default;
+  }
+}
+
+.block {
+  position: absolute;
+  background: $ink;
+}

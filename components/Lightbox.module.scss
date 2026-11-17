@@ -1,0 +1,34 @@
+@import "../styles/tokens";
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: $z-lightbox;
+  touch-action: none;
+  cursor: zoom-out;
+  user-select: none;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: $overlay-bg;
+  -webkit-backdrop-filter: blur($overlay-blur);
+  backdrop-filter: blur($overlay-blur);
+}
+
+.frame {
+  position: fixed;
+  overflow: hidden;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.caption {
+  position: fixed;
+  line-height: $line-height;
+}
+
+.description {
+  opacity: $muted-opacity;
+}

@@ -1,0 +1,125 @@
+@import "../styles/tokens";
+@import "../styles/mixins";
+
+.shell {
+  min-height: 100vh;
+}
+
+// Everything is pinned to the viewport edges, matching the Figma constraints.
+.logo {
+  position: fixed;
+  top: $gutter;
+  left: $gutter;
+  z-index: $z-chrome;
+  display: block;
+  line-height: 0;
+
+  img {
+    display: block;
+  }
+}
+
+.nav {
+  position: fixed;
+  top: 40px;
+  right: $gutter;
+  z-index: $z-chrome;
+}
+
+.navLink {
+  transition: opacity 150ms;
+
+  &:hover {
+    opacity: $muted-opacity;
+  }
+}
+
+// About ↔ Close. The text stays anchored right while torph morphs it; the Close
+// chip is drawn around it so the label doesn't shift.
+.aboutLink {
+  position: relative;
+  display: inline-block;
+  transition: opacity 150ms;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -4px -6px;
+    z-index: -1;
+    border-radius: 2px;
+    background: $chip-bg;
+    opacity: 0;
+    transition: opacity 200ms $ease-out, background-color 150ms;
+  }
+
+  &:hover {
+    opacity: $muted-opacity;
+  }
+}
+
+// Above the About overlay / lightbox while one is open.
+.nav[data-open] {
+  z-index: $z-lightbox + 1;
+
+  .aboutLink {
+    &::before {
+      opacity: 1;
+    }
+
+    &:hover {
+      opacity: 1;
+
+      &::before {
+        background: rgba(0, 0, 0, 0.08);
+      }
+    }
+  }
+}
+
+.footer {
+  position: fixed;
+  left: $gutter;
+  right: $gutter;
+  bottom: 39px;
+  z-index: $z-chrome;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.socials {
+  display: flex;
+  gap: 32px;
+}
+
+// Phones: one column that scrolls with the page, no footer.
+@include for-phone-only {
+  .shell {
+    padding: 72px 0 $phone-gutter;
+  }
+
+  .logo {
+    position: absolute;
+    top: $phone-gutter;
+    left: $phone-gutter;
+  }
+
+  .nav {
+    position: absolute;
+    top: $phone-gutter + 4px;
+    right: $phone-gutter;
+
+    &[data-open] {
+      position: fixed;
+    }
+  }
+
+  .footer {
+    display: none;
+  }
+}

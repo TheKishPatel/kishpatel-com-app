@@ -1,0 +1,67 @@
+@import "../styles/tokens";
+@import "../styles/mixins";
+
+.about {
+  position: fixed;
+  inset: 0;
+  z-index: $z-about;
+  overflow-y: auto;
+  background: $overlay-bg;
+  -webkit-backdrop-filter: blur($overlay-blur);
+  backdrop-filter: blur($overlay-blur);
+  animation: fade-in 240ms $ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about {
+    animation: none;
+  }
+}
+
+// Figma: 680px column, centred between the 96px header and footer bands.
+.content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 40px;
+  width: 100%;
+  max-width: 680px + $gutter * 2;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: $chrome $gutter;
+  line-height: $line-height;
+
+  @include for-phone-only {
+    justify-content: flex-start;
+    padding: 72px $phone-gutter 48px;
+  }
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $gap;
+  align-items: start;
+}
+
+.label {
+  opacity: $muted-opacity;
+}
+
+.link {
+  text-decoration: underline;
+  text-decoration-color: $underline;
+  text-decoration-thickness: 8%;
+  text-underline-offset: auto;
+  transition: text-decoration-color 150ms;
+}
+
+a.link:hover {
+  text-decoration-color: currentColor;
+}
