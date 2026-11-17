@@ -1,34 +1,52 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# kishpatel.com
 
-## Getting Started
+Kish Patel's portfolio: a side-scrolling gallery of projects (with a grid view), a
+lightbox for each project, and an About page that opens over the gallery. Built with
+Next.js 14 (pages router), React 18 and SCSS modules, from a Figma design.
 
-First, run the development server:
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
+npm install
+npm run dev     # http://localhost:3000
+npm run build   # production build; also checks every project file
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Edit the projects
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+Projects are Markdown files in `content/projects/`, one per project, with images in
+`public/gallery/`. The number in the filename sets the order. See
+[content/README.md](content/README.md) for the fields, links in descriptions, drafts
+and reordering.
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+Images are **WebP at quality 90, converted from a 2x PNG export**. The steps (export
+from Figma, convert with `cwebp`, add the file) are in
+[.claude/skills/import-gallery-images/SKILL.md](.claude/skills/import-gallery-images/SKILL.md),
+which Claude Code follows when asked to import images.
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+A mistake in a project file (missing field, bad link, missing image, misnamed file)
+stops the build with the file name and what to fix.
 
-## Learn More
+## Where things are
 
-To learn more about Next.js, take a look at the following resources:
+| Path | What |
+| --- | --- |
+| `components/SiteShell.tsx` | Logo, nav (About ↔ Close), gallery, footer; owns the overlays |
+| `components/Gallery.tsx` | Side-scrolling strip and grid, drag and wheel scrolling, hover label |
+| `components/Lightbox.tsx` | Zoom-in viewer with swipe, keyboard and tap-to-close |
+| `components/About.tsx` | About overlay content (roles, founders, socials) |
+| `components/LogoMark.tsx` | The K logo and its hover morph |
+| `lib/content.ts` | Reads and checks `content/projects/` at build time |
+| `lib/motion.ts`, `styles/_tokens.scss` | Easing, durations, colours, spacing |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Motion
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+One easing curve, `cubic-bezier(0.2, 0.8, 0, 1)`, and three durations: 150ms, 250ms
+and 500ms. They're defined twice, in `lib/motion.ts` for JavaScript and in
+`styles/_tokens.scss` for CSS, so change both together. Everything respects
+`prefers-reduced-motion`.
 
-## Deploy on Vercel
+## Font
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Paper Mono, under the SIL Open Font License (`fonts/PaperMono/OFL.txt`).

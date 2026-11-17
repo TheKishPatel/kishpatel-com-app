@@ -1,0 +1,14 @@
+@import "../styles/tokens";
+
+.mark {
+  display: block;
+}
+
+.arm {
+  fill: $logo;
+  fill-opacity: 0.7;
+}
+
+.leg {
+  fill: $logo;
+}

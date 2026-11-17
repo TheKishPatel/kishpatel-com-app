@@ -1,0 +1,31 @@
+// Values from the Figma file (frame 1512 × 843).
+$gutter: 36px; // logo / nav / footer inset from the edge
+$chrome: 96px; // space above and below the gallery
+$gap: 8px; // between gallery items
+$text-size: 14px;
+$line-height: 20px;
+
+$ink: #000;
+$paper: #fff;
+$logo: #0019bf;
+$muted-opacity: 0.5;
+$chip-bg: rgba(0, 0, 0, 0.04);
+$overlay-bg: rgba(255, 255, 255, 0.9);
+$overlay-blur: 48px;
+$underline: rgba(0, 0, 0, 0.1);
+
+$phone-gutter: 20px;
+$phone-chrome: 72px; // space above content on phones (clears the logo and nav)
+
+// Motion — also lib/motion.ts (JS animations, torph).
+$ease: cubic-bezier(0.2, 0.8, 0, 1);
+$duration-fast: 150ms; // hovers, small fades, things leaving
+$duration-base: 250ms; // overlays fading, slides, settling back
+$duration-slow: 500ms; // big moves: the lightbox zoom, text morphs
+
+// Stacking order
+$z-gallery: 0;
+$z-chrome: 10;
+$z-cursor-label: 20;
+$z-about: 30;
+$z-lightbox: 40;

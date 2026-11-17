@@ -33,3 +33,17 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# gallery source exports: only the WebPs ship (see content/README.md)
+/public/gallery/*.png
+/public/gallery/*.jpg
+/public/gallery/*.jpeg
+
+# claude code: personal settings and worktrees (skills and launch.json are shared)
+/.claude/settings.local.json
+/.claude/worktrees/
+CLAUDE.local.md
+
+# editors
+.vscode/
+.idea/

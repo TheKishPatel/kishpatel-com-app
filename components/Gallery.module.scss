@@ -1,0 +1,154 @@
+@import "../styles/tokens";
+@import "../styles/mixins";
+
+// Pinned between the header and footer (Figma: inset 96px 0).
+.scroller {
+  position: fixed;
+  top: $chrome;
+  bottom: $chrome;
+  left: 0;
+  right: 0;
+  z-index: $z-gallery;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.track {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  position: relative;
+}
+
+.button {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  cursor: inherit;
+
+  &:focus-visible {
+    outline-offset: -3px;
+  }
+}
+
+// Side-scrolling strip
+.gallery {
+  overflow-x: auto;
+  overflow-y: hidden;
+  cursor: grab;
+  user-select: none;
+
+  .track {
+    display: flex;
+    gap: $gap;
+    height: 100%;
+    width: max-content;
+  }
+
+  .item {
+    flex: none;
+    height: 100%;
+  }
+}
+
+.dragging {
+  cursor: grabbing;
+}
+
+// Masonry grid
+.grid {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 $gutter;
+  cursor: zoom-in;
+
+  .track {
+    columns: 4;
+    column-gap: $gap;
+
+    @media (max-width: 1199px) {
+      columns: 3;
+    }
+
+    @media (max-width: 899px) {
+      columns: 2;
+    }
+  }
+
+  .item {
+    width: 100%;
+    margin-bottom: $gap;
+    break-inside: avoid;
+  }
+}
+
+// Phones: one plain column that scrolls with the page, whichever view is set.
+@include for-phone-only {
+  .scroller,
+  .gallery,
+  .grid {
+    position: static;
+    overflow: visible;
+    padding: 0;
+    cursor: default;
+    user-select: auto;
+  }
+
+  .gallery .track,
+  .grid .track {
+    display: flex;
+    flex-direction: column;
+    gap: $gap;
+    width: auto;
+    height: auto;
+    columns: auto;
+  }
+
+  .gallery .item,
+  .grid .item {
+    width: 100%;
+    height: auto;
+    margin: 0;
+  }
+}
+
+// Project name that follows the cursor
+.cursorLabel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: $z-cursor-label;
+  pointer-events: none;
+}
+
+.cursorLabelText {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  transform: translate(-50%, 4px);
+  padding: 4px 6px;
+  border-radius: 2px;
+  background: $ink;
+  color: $paper;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity $duration-fast $ease, transform $duration-fast $ease;
+
+  &[data-visible="true"] {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
