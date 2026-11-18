@@ -8,8 +8,25 @@ type Props = {
   priority?: boolean
 }
 
-/** A project's image. Fills its positioned parent. */
+/** A project's image or video. Fills its positioned parent. */
 export default function ProjectMedia({ project, sizes, priority }: Props) {
+  if (project.video) {
+    return (
+      <video
+        className={`${styles.image} ${styles.video}`}
+        src={project.src}
+        autoPlay
+        muted
+        loop
+        playsInline
+        disablePictureInPicture
+        disableRemotePlayback
+        preload={priority ? 'auto' : 'metadata'}
+        aria-hidden
+      />
+    )
+  }
+
   return (
     <Image
       className={styles.image}

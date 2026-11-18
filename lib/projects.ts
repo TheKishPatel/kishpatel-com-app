@@ -12,6 +12,8 @@ export type Project = {
   src: string
   /** An animated WebP or a GIF: served as-is, since next/image can't resize animations. */
   animated: boolean
+  /** An .mp4: played muted on a loop with no controls. */
+  video: boolean
   /** Display size — only the ratio matters. Defaults to the image's own size. */
   width: number
   height: number

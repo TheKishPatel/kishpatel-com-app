@@ -28,6 +28,9 @@ height: 651                        # matters); defaults to the image's own size
 - **Add a project:** put the image in `public/gallery/`, add a numbered file here.
   Images are WebP at quality 90, converted from a 2x PNG — see
   `.claude/skills/import-gallery-images/SKILL.md` for the steps.
+- **Add a video:** an `.mp4` (H.264, no audio, `-crf 16 -preset veryslow -movflags +faststart`)
+  works as `image`. It plays muted on a loop with no controls. Set `width` and `height`
+  to its pixel size — they can't be read from the file.
 - **Reorder:** renumber the files.
 - **Hide one (draft):** drop the number prefix, e.g. `tide.md` — unnumbered files are skipped.
 
