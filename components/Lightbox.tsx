@@ -1,7 +1,8 @@
-import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { flushSync } from 'react-dom'
-import type { Project } from '../lib/projects'
+import { TextMorph } from 'torph/react'
+import type { Project, TextPart } from '../lib/projects'
 import { PHONE_QUERY, prefersReducedMotion, useScrollLock } from '../lib/hooks'
 import { DURATION, EASE } from '../lib/motion'
 import ProjectMedia from './ProjectMedia'
@@ -30,6 +31,7 @@ const SWIPE_DISTANCE = 60
 const DISMISS_DISTANCE = 100
 
 const PHONE_CAPTION_SPACE = 112 // below the image on phones, room for the caption
+const CAPTION_STAGGER = 60 // ms the description's morph trails the title's
 
 /** A px length token from styles/_tokens.scss, exposed on :root in globals.scss. */
 function token(name: string): number {
@@ -91,6 +93,50 @@ function Snapshot({ getSource }: { getSource: () => HTMLElement | null }) {
   return <canvas ref={ref} className={styles.snapshot} aria-hidden />
 }
 
+/**
+ * Caption text that builds in from empty when it mounts, then morphs from one project's
+ * text to the next — TextMorph alone renders its first value without animating.
+ * `delay` (read when the text changes) holds the morph back, for the open and the stagger.
+ */
+function CaptionMorph({ text, delay }: { text: string; delay: number }) {
+  // A zero-width space, not '': TextMorph skips '' as unchanged, which would make the
+  // real text its (unanimated) first render.
+  const [shown, setShown] = useState('​')
+  const delayRef = useRef(delay)
+  delayRef.current = delay
+  useEffect(() => {
+    const wait = prefersReducedMotion() ? 0 : delayRef.current
+    if (!wait) return setShown(text)
+    const timer = window.setTimeout(() => setShown(text), wait)
+    return () => window.clearTimeout(timer)
+  }, [text])
+  return (
+    // No scale: letters only fade and slide. (Torph 0.1.4 only applies this to exiting
+    // letters; patches/torph+0.1.4.patch makes entering ones respect it too.)
+    <TextMorph as="span" ease={EASE} duration={DURATION.slow} scale={false}>
+      {shown}
+    </TextMorph>
+  )
+}
+
+/**
+ * One run of the description. Always an <a> (with no href for plain text), so the same
+ * element — and its morph — carries over between projects whether the run is a link or not.
+ */
+function DescriptionPart({ part, delay }: { part: TextPart; delay: number }) {
+  const link = typeof part === 'string' ? null : part
+  return (
+    <a
+      className={link ? styles.link : undefined}
+      href={link?.href}
+      target={link ? '_blank' : undefined}
+      rel={link ? 'noopener noreferrer' : undefined}
+    >
+      <CaptionMorph text={link ? link.text : (part as string)} delay={delay} />
+    </a>
+  )
+}
+
 const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
   { projects, index, getOrigin, onIndexChange, onClose, onClosed },
   ref,
@@ -128,6 +174,23 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rect && project.id])
 
+  // After a swipe, the caption glides from under the last image to under the new one
+  // (they differ in shape), alongside its text morph, rather than jumping there.
+  const captionFrom = useRef<Rect | null>(null)
+  useLayoutEffect(() => {
+    const from = captionFrom.current
+    captionFrom.current = null
+    const caption = captionRef.current
+    if (!from || !rect || !caption || prefersReducedMotion()) return
+    const dx = from.left - rect.left
+    const dy = from.top + from.height - (rect.top + rect.height)
+    if (!dx && !dy) return
+    caption.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], {
+      duration: DURATION.slow,
+      easing: EASE,
+    })
+  }, [rect])
+
   // Zoom in from the gallery item on open; slide in after a swipe.
   const opened = useRef(false)
   useLayoutEffect(() => {
@@ -142,12 +205,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
         frame.animate([{ transform: flip(origin, rect) }, { transform: 'none' }], { duration: OPEN_MS, easing: EASE })
       }
       backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce ? 0 : OPEN_MS, easing: EASE })
-      captionRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], {
-        duration: reduce ? 0 : DURATION.base,
-        easing: EASE,
-        delay: reduce ? 0 : DURATION.base, // lands with the end of the zoom
-        fill: 'backwards',
-      })
+      // The caption builds itself in (CaptionMorph), timed to the end of the zoom.
       return
     }
 
@@ -165,7 +223,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
         ],
         { duration: DURATION.base, easing: EASE },
       )
-      captionRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DURATION.base, easing: EASE })
+      // The caption morphs from the last project's text on its own (CaptionMorph).
     }
     // Only re-run when the project changes, not on resize.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -216,6 +274,9 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
 
   useImperativeHandle(ref, () => ({ close }), [close])
 
+  // On open, the caption waits for the zoom to land; after a swipe it morphs straight away.
+  const captionDelay = opened.current ? 0 : DURATION.base
+
   const go = useCallback(
     (direction: 1 | -1) => {
       if (closing.current || projects.length < 2) return
@@ -224,6 +285,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
       const leave = () => {
         if (closing.current) return
         enterFrom.current = direction
+        captionFrom.current = rect
         onIndexChange(next)
       }
       if (!frame || prefersReducedMotion()) return leave()
@@ -239,7 +301,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
       leaveAnim.current = anim
       anim.onfinish = leave
     },
-    [index, projects.length, onIndexChange],
+    [index, projects.length, onIndexChange, rect],
   )
 
   // Keyboard
@@ -259,7 +321,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     // Primary button only: a right-click (context menu) shouldn't count as a tap-to-close.
     if (closing.current || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return
     // A link in the caption: let the click follow it rather than count as tap-to-close.
-    if ((e.target as Element).closest('a')) return
+    if ((e.target as Element).closest('a[href]')) return
     e.currentTarget.setPointerCapture(e.pointerId)
     gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, axis: null, dx: 0, dy: 0 }
   }
@@ -355,20 +417,15 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
             className={styles.caption}
             style={{ left: rect.left, top: rect.top + rect.height + 12, width: rect.width }}
           >
-            <h2 id="lightbox-title">{project.name}</h2>
-            {hasDescription && (
-              <p id="lightbox-description" className={styles.description}>
-                {project.description.map((part, i) =>
-                  typeof part === 'string' ? (
-                    <Fragment key={i}>{part}</Fragment>
-                  ) : (
-                    <a key={i} className={styles.link} href={part.href} target="_blank" rel="noopener noreferrer">
-                      {part.text}
-                    </a>
-                  ),
-                )}
-              </p>
-            )}
+            <h2 id="lightbox-title">
+              <CaptionMorph text={project.name} delay={captionDelay} />
+            </h2>
+            {/* Always rendered, so a project without a description morphs the last one out. */}
+            <p id="lightbox-description" className={styles.description}>
+              {(hasDescription ? project.description : ['']).map((part, i) => (
+                <DescriptionPart key={i} part={part} delay={captionDelay + CAPTION_STAGGER} />
+              ))}
+            </p>
           </div>
         </>
       )}
