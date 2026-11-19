@@ -31,6 +31,8 @@ const DRIFT_EASE = 1500 // ms to reach full speed, from a standstill or a turnar
 
 // The strip's height: the viewport minus the header and footer bands ($chrome × 2).
 const STRIP_INSET = 96 * 2
+// $gallery-max-height: the strip stops growing here on tall screens.
+const STRIP_MAX = 1200
 
 /**
  * How wide an item is drawn, so the browser fetches a sharp enough image: full width on
@@ -38,7 +40,7 @@ const STRIP_INSET = 96 * 2
  * viewport's half). The grid draws them smaller, so this covers both views.
  */
 const itemSizes = (project: Project) =>
-  `${PHONE_QUERY} 100vw, calc((100vh - ${STRIP_INSET}px) * ${+(project.width / project.height).toFixed(4)})`
+  `${PHONE_QUERY} 100vw, calc(min(100vh - ${STRIP_INSET}px, ${STRIP_MAX}px) *${+(project.width / project.height).toFixed(4)})`
 
 /**
  * Trackpads and smooth mice (Magic Mouse) send pixel deltas with their own momentum;
