@@ -63,6 +63,34 @@ function flip(from: DOMRect, to: Rect): string {
   return `translate(${dx}px, ${dy}px) scale(${from.width / to.width}, ${from.height / to.height})`
 }
 
+type Media = HTMLImageElement | HTMLVideoElement
+
+const mediaIn = (el: HTMLElement | null | undefined) => el?.querySelector<Media>('img, video') ?? null
+
+/**
+ * A still of the gallery item's media, which is already loaded and decoded. The lightbox
+ * asks for a larger image (and mounts a fresh video), which can take a while the first
+ * time each project opens — without this, the frame zooms in empty and the image flashes.
+ */
+function Snapshot({ getSource }: { getSource: () => HTMLElement | null }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useLayoutEffect(() => {
+    const canvas = ref.current
+    const media = mediaIn(getSource())
+    if (!canvas || !media) return
+    const video = media instanceof HTMLVideoElement
+    const width = video ? media.videoWidth : media.naturalWidth
+    const height = video ? media.videoHeight : media.naturalHeight
+    if (!width || !height) return // not loaded yet (a lazy item off screen)
+    canvas.width = width
+    canvas.height = height
+    canvas.getContext('2d')?.drawImage(media, 0, 0, width, height)
+    // Only draw once, as the project appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return <canvas ref={ref} className={styles.snapshot} aria-hidden />
+}
+
 const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
   { projects, index, getOrigin, onIndexChange, onClose, onClosed },
   ref,
@@ -74,6 +102,8 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
   const captionRef = useRef<HTMLDivElement>(null)
 
   const [rect, setRect] = useState<Rect | null>(null)
+  // The project whose full-size media has painted; until then its Snapshot shows.
+  const [readyId, setReadyId] = useState<string | null>(null)
   const closing = useRef(false)
   const enterFrom = useRef<number>(0) // -1 / 1 when arriving from a swipe, 0 on first open
   const leaveAnim = useRef<Animation | null>(null)
@@ -88,6 +118,15 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [project])
+
+  // A video picks up where the gallery item's copy is, rather than restarting from 0
+  // (which would also jump away from the Snapshot's frame).
+  useLayoutEffect(() => {
+    const from = mediaIn(getOrigin(index))
+    const to = mediaIn(frameRef.current)
+    if (from instanceof HTMLVideoElement && to instanceof HTMLVideoElement) to.currentTime = from.currentTime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rect && project.id])
 
   // Zoom in from the gallery item on open; slide in after a swipe.
   const opened = useRef(false)
@@ -301,7 +340,14 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
             className={styles.frame}
             style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
           >
-            <ProjectMedia key={project.id} project={project} sizes="100vw" priority />
+            {readyId !== project.id && <Snapshot key={`snapshot-${project.id}`}getSource={() => getOrigin(index)} />}
+            <ProjectMedia
+              key={project.id}
+              project={project}
+              sizes="100vw"
+              priority
+              onReady={() => setReadyId(project.id)}
+            />
           </div>
 
           <div

@@ -24,6 +24,15 @@
   will-change: transform;
 }
 
+// Under the full-size media (which comes after it), drawn the same way.
+.snapshot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .caption {
   position: fixed;
   line-height: $line-height;
