@@ -124,6 +124,8 @@ export async function getProjects(): Promise<Project[]> {
     let width = optionalSize(data, 'width', file)
     let height = optionalSize(data, 'height', file)
     if ((width === undefined) !== (height === undefined)) fail(file, 'set both "width" and "height", or neither')
+    const video = src.endsWith('.mp4')
+    if (video && width === undefined) fail(file, 'a video needs "width" and "height" (its pixel size)')
     if (width === undefined || height === undefined) {
       // Reads only the file's header.
       const size = await imageSizeFromFile(imagePath)
@@ -137,7 +139,8 @@ export async function getProjects(): Promise<Project[]> {
       name: requiredString(data, 'name', file),
       description: parseLinks(optionalString(data, 'description', file), file),
       src,
-      animated: isAnimated(imagePath),
+      animated: !video && isAnimated(imagePath),
+      video,
       width,
       height,
     }

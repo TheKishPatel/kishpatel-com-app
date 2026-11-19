@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import Link from 'next/link'
@@ -6,7 +6,7 @@ import { useRouter } from 'next/router'
 import { TextMorph } from 'torph/react'
 import { DURATION, EASE } from '../lib/motion'
 import type { Project } from '../lib/projects'
-import { prefersReducedMotion } from '../lib/hooks'
+import { prefersReducedMotion, useIsomorphicLayoutEffect } from '../lib/hooks'
 import Gallery, { projectElement } from './Gallery'
 import type { GalleryView } from './Gallery'
 import Lightbox from './Lightbox'
@@ -18,11 +18,42 @@ import styles from './SiteShell.module.scss'
 
 type ViewTransitionDocument = Document & { startViewTransition?: (update: () => void) => unknown }
 
+/** Fisher–Yates: a new array in random order. */
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
+/**
+ * The projects in a new random order on every visit. The order holds while the
+ * shell stays mounted (opening /about, the lightbox), and is redrawn only if the
+ * set of projects changes. Null until shuffled: the static HTML has the file order.
+ */
+function useShuffledProjects(projects: Project[]): Project[] | null {
+  const ids = projects.map((p) => p.id).join('\n')
+  const [order, setOrder] = useState<{ ids: string; order: string[] } | null>(null)
+  // Before the first paint after hydration, so the file order never shows.
+  useIsomorphicLayoutEffect(() => {
+    setOrder({ ids, order: shuffle(ids ? ids.split('\n') : []) })
+  }, [ids])
+  return useMemo(() => {
+    if (!order || order.ids !== ids) return null
+    const byId = new Map(projects.map((p) => [p.id, p]))
+    return order.order.map((id) => byId.get(id)!)
+  }, [order, ids, projects])
+}
+
 /**
  * The home page — logo, nav, gallery and footer. It lives in _app so it stays
  * mounted (gallery position and all) while /about opens on top of it.
  */
-export default function SiteShell({ projects, children }: { projects: Project[]; children: ReactNode }) {
+export default function SiteShell({ projects: fileOrder, children }: { projects: Project[]; children: ReactNode }) {
+  const shuffled = useShuffledProjects(fileOrder)
+  const projects = shuffled ?? fileOrder
   const router = useRouter()
   const aboutOpen = router.pathname === '/about'
   // Stays mounted after the URL leaves /about, until its fade-out finishes.
@@ -109,7 +140,11 @@ export default function SiteShell({ projects, children }: { projects: Project[];
         </nav>
       </header>
 
-      <main ref={mainRef}>
+      {/* Hidden until shuffled; without JavaScript, shown in file order. */}
+      <main ref={mainRef} className={shuffled ? undefined : styles.shuffling}>
+        <noscript>
+          <style>{`.${styles.shuffling} { visibility: visible; }`}</style>
+        </noscript>
         <h1 className="visually-hidden">Kish Patel — selected work</h1>
         <Gallery
           projects={projects}

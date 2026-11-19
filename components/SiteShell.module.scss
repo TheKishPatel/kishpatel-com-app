@@ -5,6 +5,11 @@
   min-height: 100vh;
 }
 
+// The gallery before its order is shuffled (see useShuffledProjects).
+.shuffling {
+  visibility: hidden;
+}
+
 // Everything is pinned to the viewport edges, matching the Figma constraints.
 .logo {
   position: fixed;

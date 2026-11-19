@@ -3,3 +3,11 @@
   pointer-events: none;
   user-select: none;
 }
+
+// Matches next/image's `fill`.
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
