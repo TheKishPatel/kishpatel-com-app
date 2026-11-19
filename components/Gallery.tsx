@@ -3,7 +3,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, MouseEvent as Re
 import { TextMorph } from 'torph/react'
 import { DURATION, EASE } from '../lib/motion'
 import type { Project } from '../lib/projects'
-import { FINE_HOVER_QUERY, PHONE_QUERY, useIsomorphicLayoutEffect, useMediaQuery } from '../lib/hooks'
+import { FINE_HOVER_QUERY, PHONE_QUERY, prefersReducedMotion, useIsomorphicLayoutEffect, useMediaQuery } from '../lib/hooks'
 import ProjectMedia from './ProjectMedia'
 import styles from './Gallery.module.scss'
 
@@ -22,6 +22,12 @@ type Props = {
 const GLIDE = 0.12 // mouse wheel: fraction of the remaining distance covered per 60Hz frame
 const DRAG_THRESHOLD = 5 // px before a press becomes a drag (and stops being a click)
 const INERTIA = 280 // ms of release velocity carried into the glide
+
+// Carousel: with no input, the strip drifts to one end and back.
+const DRIFT_SPEED = 29 // px per second at full speed
+const DRIFT_IDLE = 4000 // ms without input before it drifts again
+const DRIFT_START = 1500 // ms after load (or an overlay closing) before it first drifts
+const DRIFT_EASE = 1500 // ms to reach full speed, from a standstill or a turnaround
 
 // The strip's height: the viewport minus the header and footer bands ($chrome × 2).
 const STRIP_INSET = 96 * 2
@@ -157,6 +163,68 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
 
   useEffect(() => stopGlide, [])
 
+  // --- Carousel drift ---------------------------------------------------------
+
+  // `pos` is a float (scrollLeft rounds), `ramp` goes 0 → 1 as it eases up to speed,
+  // and `running` is true while the drift, not the visitor, is moving the strip.
+  const drift = useRef({ pos: 0, dir: 1, ramp: 0, running: false, lastInput: 0, time: 0 })
+
+  const markInput = useCallback(() => {
+    drift.current.lastInput = performance.now()
+    drift.current.running = false
+  }, [])
+
+  useEffect(() => {
+    if (!horizontal || !interactive || prefersReducedMotion()) return
+    const d = drift.current
+    d.lastInput = performance.now() - DRIFT_IDLE + DRIFT_START
+    d.running = false
+    d.time = 0
+    let raf = 0
+
+    const step = (now: number) => {
+      raf = requestAnimationFrame(step)
+      const dt = d.time ? Math.min(100, now - d.time) : 0 // capped, so a background tab doesn't jump
+      d.time = now
+      const el = scrollerRef.current
+      const max = el ? el.scrollWidth - el.clientWidth : 0
+      // Paused: recent input, a wheel glide or drag still moving it, or nothing to scroll.
+      if (!el || max <= 0 || motion.current.raf || drag.current.down || now - d.lastInput < DRIFT_IDLE) {
+        d.running = false
+        return
+      }
+      if (!d.running) {
+        // Pick up from wherever the visitor left it, heading away from the nearer end.
+        d.pos = el.scrollLeft
+        d.ramp = 0
+        if (d.pos >= max - 1) d.dir = -1
+        else if (d.pos <= 1) d.dir = 1
+        d.running = true
+      }
+      d.ramp = Math.min(1, d.ramp + dt / DRIFT_EASE)
+      const eased = d.ramp * d.ramp * (3 - 2 * d.ramp) // smoothstep
+      d.pos += (d.dir * DRIFT_SPEED * eased * dt) / 1000
+      if (d.pos >= max || d.pos <= 0) {
+        d.pos = Math.max(0, Math.min(max, d.pos))
+        d.dir = -d.dir
+        d.ramp = 0
+      }
+      el.scrollLeft = d.pos
+      motion.current.current = motion.current.target = d.pos
+    }
+
+    // Anything the visitor does pauses it (wheel and trackpad, clicks and drags, keys,
+    // touch). Native scrolling is caught in onScroll.
+    const events = ['wheel', 'pointerdown', 'keydown', 'touchstart'] as const
+    for (const type of events) window.addEventListener(type, markInput, { passive: true })
+    raf = requestAnimationFrame(step)
+    return () => {
+      cancelAnimationFrame(raf)
+      d.running = false
+      for (const type of events) window.removeEventListener(type, markInput)
+    }
+  }, [horizontal, interactive, markInput])
+
   // --- Hover label -----------------------------------------------------------
 
   const updateHover = useCallback(() => {
@@ -267,6 +335,9 @@ export default function Gallery({ projects, view, interactive, hiddenIndex, onOp
   }
 
   const onScroll = () => {
+    // Any scroll the drift didn't make (scrollbar, glide, momentum) counts as input.
+    const d = drift.current
+    if (!d.running || Math.abs(scrollerRef.current!.scrollLeft - d.pos) > 2) markInput()
     // Keep the easing in sync with native scrolling (keyboard, scrollbar, touch).
     if (!motion.current.raf && !drag.current.active) {
       motion.current.current = motion.current.target = scrollerRef.current!.scrollLeft
