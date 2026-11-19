@@ -2,8 +2,9 @@
 
 ## Gallery projects — `projects/`
 
-One Markdown file per project. The number at the start of the filename sets the
-order in the gallery; the rest becomes the project's id.
+One Markdown file per project. The gallery shows them in a random order, shuffled
+on every visit; the number at the start of the filename only sorts the files (and
+sets the order when JavaScript is off). The rest becomes the project's id.
 
 ```
 projects/
@@ -31,7 +32,6 @@ height: 651                        # matters); defaults to the image's own size
 - **Add a video:** an `.mp4` (H.264, no audio, `-crf 16 -preset veryslow -movflags +faststart`)
   works as `image`. It plays muted on a loop with no controls. Set `width` and `height`
   to its pixel size — they can't be read from the file.
-- **Reorder:** renumber the files.
 - **Hide one (draft):** drop the number prefix, e.g. `tide.md` — unnumbered files are skipped.
 
 The site reads these at build time, so changes go live on the next deploy. In
