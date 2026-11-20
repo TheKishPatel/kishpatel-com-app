@@ -1,7 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { flushSync } from 'react-dom'
-import { segmentText } from 'torph'
 import { TextMorph } from 'torph/react'
 import type { Project, TextPart } from '../lib/projects'
 import { PHONE_QUERY, prefersReducedMotion, useScrollLock } from '../lib/hooks'
@@ -33,18 +32,10 @@ const DISMISS_DISTANCE = 100
 
 const PHONE_CAPTION_SPACE = 112 // below the image on phones, room for the caption
 const CAPTION_STAGGER = 60 // ms the description's morph trails the title's
-
-// Torph fades a run of six or more new pieces straight in, but holds a shorter run back
-// by a quarter of its duration. (Text with a space splits into words and spaces, text
-// without one into letters.) Left alone, a short title ("Lightyear Homepage", 3 pieces)
-// would land after a long link ("Lightyear.com", 13) despite the stagger.
-// CaptionMorph evens it out.
-const ENTER_LAG = DURATION.slow * 0.25
-
-/** How long torph holds `text` back before fading it in, when all of it is new. */
-function enterLag(text: string): number {
-  return segmentText(text, 'en').length >= 6 ? 0 : ENTER_LAG
-}
+// Torph holds new letters back by a quarter of its duration before fading them in, so
+// the old ones can clear first. (patches/torph+0.1.4.patch makes that hold apply to every
+// new letter, not only short runs of them, so the stagger above always holds.)
+const TORPH_ENTER_HOLD = DURATION.slow / 4
 
 /** A px length token from styles/_tokens.scss, exposed on :root in globals.scss. */
 function token(name: string): number {
@@ -109,8 +100,8 @@ function Snapshot({ getSource }: { getSource: () => HTMLElement | null }) {
 /**
  * Caption text that builds in from empty when it mounts, then morphs from one project's
  * text to the next — TextMorph alone renders its first value without animating.
- * The text starts to show ENTER_LAG after `delay` (read when the text changes), whichever
- * way torph animates it, so the title and the description keep their stagger.
+ * `delay` (read when the text changes) holds the morph back, for the open and the stagger;
+ * the text starts to show TORPH_ENTER_HOLD after it.
  */
 function CaptionMorph({ text, delay }: { text: string; delay: number }) {
   // A zero-width space, not '': TextMorph skips '' as unchanged, which would make the
@@ -119,7 +110,7 @@ function CaptionMorph({ text, delay }: { text: string; delay: number }) {
   const delayRef = useRef(delay)
   delayRef.current = delay
   useEffect(() => {
-    const wait = prefersReducedMotion() ? 0 : delayRef.current + ENTER_LAG - enterLag(text)
+    const wait = prefersReducedMotion() ? 0 : delayRef.current
     if (!wait) return setShown(text)
     const timer = window.setTimeout(() => setShown(text), wait)
     return () => window.clearTimeout(timer)
@@ -157,6 +148,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
 ) {
   const project = projects[index]
   const hasDescription = project.description.length > 0
+  const descriptionParts = Math.max(1, ...projects.map((p) => p.description.length))
   const frameRef = useRef<HTMLDivElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
   const captionRef = useRef<HTMLDivElement>(null)
@@ -192,14 +184,20 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
   // (they differ in height), alongside its text morph, rather than jumping there. It's
   // centred, and so is every image, so only its height changes.
   const captionFrom = useRef<Rect | null>(null)
+  const captionGlide = useRef<Animation | null>(null)
   useLayoutEffect(() => {
     const from = captionFrom.current
     captionFrom.current = null
     const caption = captionRef.current
     if (!from || !rect || !caption || prefersReducedMotion()) return
-    const dy = from.top + from.height - (rect.top + rect.height)
+    // Mid-glide (a quick second swipe), start from where the caption is drawn now.
+    const drawn = getComputedStyle(caption).transform
+    const offset = drawn === 'none' ? 0 : new DOMMatrix(drawn).m42
+    captionGlide.current?.cancel()
+    captionGlide.current = null
+    const dy = from.top + from.height + offset - (rect.top + rect.height)
     if (!dy) return
-    caption.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], {
+    captionGlide.current = caption.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], {
       duration: DURATION.slow,
       easing: EASE,
     })
@@ -289,8 +287,8 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
   useImperativeHandle(ref, () => ({ close }), [close])
 
   // On open, the caption waits for the zoom to land; after a swipe it morphs straight away.
-  // CaptionMorph adds ENTER_LAG to this, so on open the title still shows DURATION.base in.
-  const captionDelay = opened.current ? 0 : DURATION.base - ENTER_LAG
+  // Torph adds its hold, so on open the title shows DURATION.base in.
+  const captionDelay = opened.current ? 0 : DURATION.base - TORPH_ENTER_HOLD
 
   const go = useCallback(
     (direction: 1 | -1) => {
@@ -401,7 +399,8 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     <div
       className={styles.lightbox}
       role="dialog"
-      aria-labelledby="lightbox-title"
+      // A label, not aria-labelledby: the title builds in from empty after a delay.
+      aria-label={project.name}
       aria-describedby={hasDescription ? 'lightbox-description' : undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -435,10 +434,11 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
             <h2 id="lightbox-title">
               <CaptionMorph text={project.name} delay={captionDelay} />
             </h2>
-            {/* Always rendered, so a project without a description morphs the last one out. */}
+            {/* Always as many parts as the longest description, so a shorter one (or none)
+                morphs the extra parts out rather than dropping them. */}
             <p id="lightbox-description" className={styles.description}>
-              {(hasDescription ? project.description : ['']).map((part, i) => (
-                <DescriptionPart key={i} part={part} delay={captionDelay + CAPTION_STAGGER} />
+              {Array.from({ length: descriptionParts }, (_, i) => (
+                <DescriptionPart key={i} part={project.description[i] ?? ''} delay={captionDelay + CAPTION_STAGGER} />
               ))}
             </p>
           </div>

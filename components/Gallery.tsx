@@ -39,8 +39,16 @@ const STRIP_MAX = 1200
  * phones, otherwise as tall as the strip and as wide as its ratio (often wider than the
  * viewport's half). The grid draws them smaller, so this covers both views.
  */
-const itemSizes = (project: Project) =>
-  `${PHONE_QUERY} 100vw, calc(min(100vh - ${STRIP_INSET}px, ${STRIP_MAX}px) *${+(project.width / project.height).toFixed(4)})`
+function itemSizes(project: Project): string {
+  const ratio = project.width / project.height
+  // The strip is min(100vh - STRIP_INSET, STRIP_MAX) tall, written as a media query: not
+  // every browser takes min() in `sizes`, and one that doesn't would fetch 100vw images.
+  return [
+    `${PHONE_QUERY} 100vw`,
+    `(min-height: ${STRIP_INSET + STRIP_MAX}px) ${Math.round(STRIP_MAX * ratio)}px`,
+    `calc((100vh - ${STRIP_INSET}px) * ${+ratio.toFixed(4)})`,
+  ].join(', ')
+}
 
 /**
  * Trackpads and smooth mice (Magic Mouse) send pixel deltas with their own momentum;

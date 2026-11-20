@@ -53,4 +53,11 @@
   &:hover {
     text-decoration-color: currentColor;
   }
+
+  // Torph's root and letters are inline-blocks, which an underline doesn't reach
+  // into, so each carries it on.
+  [torph-root],
+  [torph-item] {
+    text-decoration: inherit;
+  }
 }
