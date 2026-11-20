@@ -5,12 +5,12 @@ import localFont from 'next/font/local'
 import SiteShell from '../components/SiteShell'
 import type { Project } from '../lib/projects'
 
-// Paper Mono by Paper (SIL Open Font License) — fonts/PaperMono/OFL.txt
-const paperMono = localFont({
-  src: '../fonts/PaperMono/PaperMono-Medium.woff2',
+// Geist Mono by Vercel (SIL Open Font License) — fonts/GeistMono/OFL.txt
+const geistMono = localFont({
+  src: '../fonts/GeistMono/GeistMono-Medium.woff2',
   weight: '500',
   style: 'normal',
-  variable: '--font-paper-mono',
+  variable: '--font-geist-mono',
   display: 'swap',
 })
 
@@ -35,7 +35,7 @@ export default function App({ Component, pageProps }: AppProps<Partial<SiteProps
       </Head>
       <style jsx global>{`
         :root {
-          --font-paper-mono: ${paperMono.style.fontFamily};
+          --font-geist-mono: ${geistMono.style.fontFamily};
         }
       `}</style>
       {/* Pages without getStaticProps (404, error) get an empty gallery. */}
