@@ -1,7 +1,8 @@
-import { Fragment, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { flushSync } from 'react-dom'
-import type { Project } from '../lib/projects'
+import { TextMorph } from 'torph/react'
+import type { Project, TextPart } from '../lib/projects'
 import { PHONE_QUERY, prefersReducedMotion, useScrollLock } from '../lib/hooks'
 import { DURATION, EASE } from '../lib/motion'
 import ProjectMedia from './ProjectMedia'
@@ -30,6 +31,11 @@ const SWIPE_DISTANCE = 60
 const DISMISS_DISTANCE = 100
 
 const PHONE_CAPTION_SPACE = 112 // below the image on phones, room for the caption
+const CAPTION_STAGGER = 60 // ms the description's morph trails the title's
+// Torph holds new letters back by a quarter of its duration before fading them in, so
+// the old ones can clear first. (patches/torph+0.1.4.patch makes that hold apply to every
+// new letter, not only short runs of them, so the stagger above always holds.)
+const TORPH_ENTER_HOLD = DURATION.slow / 4
 
 /** A px length token from styles/_tokens.scss, exposed on :root in globals.scss. */
 function token(name: string): number {
@@ -63,17 +69,93 @@ function flip(from: DOMRect, to: Rect): string {
   return `translate(${dx}px, ${dy}px) scale(${from.width / to.width}, ${from.height / to.height})`
 }
 
+type Media = HTMLImageElement | HTMLVideoElement
+
+const mediaIn = (el: HTMLElement | null | undefined) => el?.querySelector<Media>('img, video') ?? null
+
+/**
+ * A still of the gallery item's media, which is already loaded and decoded. The lightbox
+ * asks for a larger image (and mounts a fresh video), which can take a while the first
+ * time each project opens — without this, the frame zooms in empty and the image flashes.
+ */
+function Snapshot({ getSource }: { getSource: () => HTMLElement | null }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useLayoutEffect(() => {
+    const canvas = ref.current
+    const media = mediaIn(getSource())
+    if (!canvas || !media) return
+    const video = media instanceof HTMLVideoElement
+    const width = video ? media.videoWidth : media.naturalWidth
+    const height = video ? media.videoHeight : media.naturalHeight
+    if (!width || !height) return // not loaded yet (a lazy item off screen)
+    canvas.width = width
+    canvas.height = height
+    canvas.getContext('2d')?.drawImage(media, 0, 0, width, height)
+    // Only draw once, as the project appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return <canvas ref={ref} className={styles.snapshot} aria-hidden />
+}
+
+/**
+ * Caption text that builds in from empty when it mounts, then morphs from one project's
+ * text to the next — TextMorph alone renders its first value without animating.
+ * `delay` (read when the text changes) holds the morph back, for the open and the stagger;
+ * the text starts to show TORPH_ENTER_HOLD after it.
+ */
+function CaptionMorph({ text, delay }: { text: string; delay: number }) {
+  // A zero-width space, not '': TextMorph skips '' as unchanged, which would make the
+  // real text its (unanimated) first render.
+  const [shown, setShown] = useState('​')
+  const delayRef = useRef(delay)
+  delayRef.current = delay
+  useEffect(() => {
+    const wait = prefersReducedMotion() ? 0 : delayRef.current
+    if (!wait) return setShown(text)
+    const timer = window.setTimeout(() => setShown(text), wait)
+    return () => window.clearTimeout(timer)
+  }, [text])
+  return (
+    // No scale: letters only fade and slide. (Torph 0.1.4 only applies this to exiting
+    // letters; patches/torph+0.1.4.patch makes entering ones respect it too.)
+    <TextMorph as="span" ease={EASE} duration={DURATION.slow} scale={false}>
+      {shown}
+    </TextMorph>
+  )
+}
+
+/**
+ * One run of the description. Always an <a> (with no href for plain text), so the same
+ * element — and its morph — carries over between projects whether the run is a link or not.
+ */
+function DescriptionPart({ part, delay }: { part: TextPart; delay: number }) {
+  const link = typeof part === 'string' ? null : part
+  return (
+    <a
+      className={link ? styles.link : undefined}
+      href={link?.href}
+      target={link ? '_blank' : undefined}
+      rel={link ? 'noopener noreferrer' : undefined}
+    >
+      <CaptionMorph text={link ? link.text : (part as string)} delay={delay} />
+    </a>
+  )
+}
+
 const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
   { projects, index, getOrigin, onIndexChange, onClose, onClosed },
   ref,
 ) {
   const project = projects[index]
   const hasDescription = project.description.length > 0
+  const descriptionParts = Math.max(1, ...projects.map((p) => p.description.length))
   const frameRef = useRef<HTMLDivElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
   const captionRef = useRef<HTMLDivElement>(null)
 
   const [rect, setRect] = useState<Rect | null>(null)
+  // The project whose full-size media has painted; until then its Snapshot shows.
+  const [readyId, setReadyId] = useState<string | null>(null)
   const closing = useRef(false)
   const enterFrom = useRef<number>(0) // -1 / 1 when arriving from a swipe, 0 on first open
   const leaveAnim = useRef<Animation | null>(null)
@@ -89,6 +171,38 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     return () => window.removeEventListener('resize', update)
   }, [project])
 
+  // A video picks up where the gallery item's copy is, rather than restarting from 0
+  // (which would also jump away from the Snapshot's frame).
+  useLayoutEffect(() => {
+    const from = mediaIn(getOrigin(index))
+    const to = mediaIn(frameRef.current)
+    if (from instanceof HTMLVideoElement && to instanceof HTMLVideoElement) to.currentTime = from.currentTime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rect && project.id])
+
+  // After a swipe, the caption glides from under the last image to under the new one
+  // (they differ in height), alongside its text morph, rather than jumping there. It's
+  // centred, and so is every image, so only its height changes.
+  const captionFrom = useRef<Rect | null>(null)
+  const captionGlide = useRef<Animation | null>(null)
+  useLayoutEffect(() => {
+    const from = captionFrom.current
+    captionFrom.current = null
+    const caption = captionRef.current
+    if (!from || !rect || !caption || prefersReducedMotion()) return
+    // Mid-glide (a quick second swipe), start from where the caption is drawn now.
+    const drawn = getComputedStyle(caption).transform
+    const offset = drawn === 'none' ? 0 : new DOMMatrix(drawn).m42
+    captionGlide.current?.cancel()
+    captionGlide.current = null
+    const dy = from.top + from.height + offset - (rect.top + rect.height)
+    if (!dy) return
+    captionGlide.current = caption.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], {
+      duration: DURATION.slow,
+      easing: EASE,
+    })
+  }, [rect])
+
   // Zoom in from the gallery item on open; slide in after a swipe.
   const opened = useRef(false)
   useLayoutEffect(() => {
@@ -103,12 +217,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
         frame.animate([{ transform: flip(origin, rect) }, { transform: 'none' }], { duration: OPEN_MS, easing: EASE })
       }
       backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce ? 0 : OPEN_MS, easing: EASE })
-      captionRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], {
-        duration: reduce ? 0 : DURATION.base,
-        easing: EASE,
-        delay: reduce ? 0 : DURATION.base, // lands with the end of the zoom
-        fill: 'backwards',
-      })
+      // The caption builds itself in (CaptionMorph), timed to the end of the zoom.
       return
     }
 
@@ -126,7 +235,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
         ],
         { duration: DURATION.base, easing: EASE },
       )
-      captionRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DURATION.base, easing: EASE })
+      // The caption morphs from the last project's text on its own (CaptionMorph).
     }
     // Only re-run when the project changes, not on resize.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -177,6 +286,10 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
 
   useImperativeHandle(ref, () => ({ close }), [close])
 
+  // On open, the caption waits for the zoom to land; after a swipe it morphs straight away.
+  // Torph adds its hold, so on open the title shows DURATION.base in.
+  const captionDelay = opened.current ? 0 : DURATION.base - TORPH_ENTER_HOLD
+
   const go = useCallback(
     (direction: 1 | -1) => {
       if (closing.current || projects.length < 2) return
@@ -185,6 +298,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
       const leave = () => {
         if (closing.current) return
         enterFrom.current = direction
+        captionFrom.current = rect
         onIndexChange(next)
       }
       if (!frame || prefersReducedMotion()) return leave()
@@ -200,7 +314,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
       leaveAnim.current = anim
       anim.onfinish = leave
     },
-    [index, projects.length, onIndexChange],
+    [index, projects.length, onIndexChange, rect],
   )
 
   // Keyboard
@@ -220,7 +334,7 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     // Primary button only: a right-click (context menu) shouldn't count as a tap-to-close.
     if (closing.current || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return
     // A link in the caption: let the click follow it rather than count as tap-to-close.
-    if ((e.target as Element).closest('a')) return
+    if ((e.target as Element).closest('a[href]')) return
     e.currentTarget.setPointerCapture(e.pointerId)
     gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, axis: null, dx: 0, dy: 0 }
   }
@@ -285,7 +399,8 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
     <div
       className={styles.lightbox}
       role="dialog"
-      aria-labelledby="lightbox-title"
+      // A label, not aria-labelledby: the title builds in from empty after a delay.
+      aria-label={project.name}
       aria-describedby={hasDescription ? 'lightbox-description' : undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -301,7 +416,14 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
             className={styles.frame}
             style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
           >
-            <ProjectMedia key={project.id} project={project} sizes="100vw" priority />
+            {readyId !== project.id && <Snapshot key={`snapshot-${project.id}`}getSource={() => getOrigin(index)} />}
+            <ProjectMedia
+              key={project.id}
+              project={project}
+              sizes="100vw"
+              priority
+              onReady={() => setReadyId(project.id)}
+            />
           </div>
 
           <div
@@ -309,20 +431,16 @@ const Lightbox = forwardRef<LightboxHandle, Props>(function Lightbox(
             className={styles.caption}
             style={{ left: rect.left, top: rect.top + rect.height + 12, width: rect.width }}
           >
-            <h2 id="lightbox-title">{project.name}</h2>
-            {hasDescription && (
-              <p id="lightbox-description" className={styles.description}>
-                {project.description.map((part, i) =>
-                  typeof part === 'string' ? (
-                    <Fragment key={i}>{part}</Fragment>
-                  ) : (
-                    <a key={i} className={styles.link} href={part.href} target="_blank" rel="noopener noreferrer">
-                      {part.text}
-                    </a>
-                  ),
-                )}
-              </p>
-            )}
+            <h2 id="lightbox-title">
+              <CaptionMorph text={project.name} delay={captionDelay} />
+            </h2>
+            {/* Always as many parts as the longest description, so a shorter one (or none)
+                morphs the extra parts out rather than dropping them. */}
+            <p id="lightbox-description" className={styles.description}>
+              {Array.from({ length: descriptionParts }, (_, i) => (
+                <DescriptionPart key={i} part={project.description[i] ?? ''} delay={captionDelay + CAPTION_STAGGER} />
+              ))}
+            </p>
           </div>
         </>
       )}
