@@ -49,4 +49,4 @@ and 500ms. They're defined twice, in `lib/motion.ts` for JavaScript and in
 
 ## Font
 
-Paper Mono, under the SIL Open Font License (`fonts/PaperMono/OFL.txt`).
+Geist Mono Medium by Vercel, under the SIL Open Font License (`fonts/GeistMono/OFL.txt`).

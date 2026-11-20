@@ -3,8 +3,10 @@ $gutter: 36px; // logo / nav / footer inset from the edge
 $chrome: 96px; // space above and below the gallery
 $gap: 8px; // between gallery items
 $gallery-max-height: 1200px; // the side-scrolling strip stops growing here (also Gallery.tsx)
-$text-size: 14px;
-$line-height: 20px;
+$text-size: 12px;
+$text-weight: 500;
+$text-tracking: 0.035em;
+$line-height: 1.8;
 
 $ink: #000;
 $paper: #fff;
